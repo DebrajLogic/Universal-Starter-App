@@ -438,3 +438,40 @@ Requirements:
 4. Provide only the complete, copy-pasteable TypeScript code.
 ```
 
+
+
+---
+
+## Local Development & Control Center
+
+The first working setup uses browser LocalStorage for disposable demo data and Demo Auth for a test session. No database account or `.env.local` secrets are required for this mode.
+
+### Run locally in VS Code
+
+After the feature branch is merged into `main`, use:
+
+```bash
+git checkout main
+git pull origin main
+git checkout feature/provider-control-center
+npm install
+npm run dev
+```
+
+Open http://localhost:3000.
+
+If you are testing the feature branch before it is merged, simply run `git fetch origin` and `git checkout feature/provider-control-center` first. Do not pull `main` expecting it to contain unmerged changes.
+
+### Control Center
+
+Use the floating settings button at the bottom-right of the screen to open the Control Center.
+
+- Green means the local provider is available.
+- Amber means a provider is not configured or is not ready.
+- Red means a local check failed.
+- The demo sign-in stores a non-secret test session in this browser.
+- Reset demo database removes only keys beginning with `app_db_`. It does not clear theme preferences or the demo auth session.
+
+LocalStorage is a browser-only demo store. Do not put passwords, API keys, payment data, or real customer secrets in it. Demo Auth is not production authentication and its browser-stored session must never be used as server-side proof of identity or admin permission.
+
+Cloud database and authentication adapters remain inactive placeholders until each adapter is fully implemented, configured, and tested. A status label of "Not configured" does not mean the provider is ready to use.
