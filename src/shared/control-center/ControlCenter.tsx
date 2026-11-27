@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
 import { auth } from '@/AUTH/auth/auth_switch';
+import { notify } from '@/shared/plugins/toast/ToastPlugin';
 
 type ProviderStatus = 'active' | 'setup' | 'error' | 'inactive';
 
@@ -20,21 +21,33 @@ function StatusDot({ status }: { status: ProviderStatus }) {
   return <span className={`inline-block h-2.5 w-2.5 rounded-full ${statusStyles[status]}`} aria-label={status} />;
 }
 
-function ProviderRow({ name, detail, status, label }: {
+function ProviderSwitch({ name, detail, status, label, active, onToggle }: {
   name: string;
   detail: string;
   status: ProviderStatus;
   label: string;
+  active: boolean;
+  onToggle: () => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <p className="text-sm font-medium">{name}</p>
         <p className="text-xs text-color_5">{detail}</p>
+        <span className="mt-1 flex items-center gap-1.5 text-xs text-color_5">
+          <StatusDot status={status} /> {label}
+        </span>
       </div>
-      <span className="flex shrink-0 items-center gap-2 text-xs text-color_5">
-        <StatusDot status={status} /> {label}
-      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={active}
+        aria-label={`Activate ${name}`}
+        onClick={onToggle}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-color_6 focus:ring-offset-2 ${active ? 'bg-emerald-600' : 'bg-zinc-400'}`}
+      >
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+      </button>
     </div>
   );
 }
@@ -160,32 +173,25 @@ export function ControlCenter() {
                   <span className="ml-auto text-xs text-color_5">One active provider</span>
                 </div>
 
-                <label htmlFor="database-provider" className="mb-2 block text-xs font-medium text-color_5">
-                  Active database
-                </label>
-                <select
-                  id="database-provider"
-                  value="localstorage"
-                  disabled={!storageReady}
-                  className="w-full rounded-lg border border-color_3 bg-color_1 px-3 py-2 text-sm text-color_4 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-describedby="database-provider-help"
-                >
-                  <option value="localstorage">LocalStorage — Active</option>
-                  <option value="supabase" disabled>Supabase — Coming in a later step</option>
-                  <option value="firebase" disabled>Firebase — Coming in a later step</option>
-                  <option value="mongodb" disabled>MongoDB — Coming in a later step</option>
-                  <option value="appwrite" disabled>Appwrite — Coming in a later step</option>
-                </select>
-                <p id="database-provider-help" className="mt-2 text-xs text-color_5">
-                  LocalStorage is the only database adapter ready to run right now. Other choices stay locked until their adapters are connected and tested.
+                <p className="mb-3 text-xs text-color_5">
+                  Turn on one provider. Providers that are not ready show the reason in a notification.
                 </p>
-
-                <div className="mt-4 space-y-3 border-t border-color_3 pt-4">
-                  <ProviderRow name="LocalStorage" detail="Browser-based demo database" status={storageReady ? 'active' : 'error'} label={storageReady ? 'Ready and active' : 'Unavailable'} />
-                  <ProviderRow name="Supabase" detail="PostgreSQL cloud database" status="setup" label="Not configured" />
-                  <ProviderRow name="Firebase" detail="Cloud Firestore" status="setup" label="Not configured" />
-                  <ProviderRow name="MongoDB" detail="MongoDB database" status="setup" label="Not configured" />
-                  <ProviderRow name="Appwrite" detail="Appwrite database" status="setup" label="Not configured" />
+                <div className="space-y-4 border-t border-color_3 pt-4">
+                  <ProviderSwitch name="LocalStorage" detail="Browser-based demo database" status={storageReady ? 'active' : 'error'} label={storageReady ? 'Ready · Active' : 'Browser storage unavailable'} active={true} onToggle={() => {
+                    notify.warning('LocalStorage is your only working database. Set up another database before switching it off.');
+                  }} />
+                  <ProviderSwitch name="Supabase" detail="PostgreSQL cloud database" status="setup" label="Adapter and credentials not configured" active={false} onToggle={() => {
+                    notify.warning('Supabase is not ready. Add its adapter, URL, and API key before activating it.');
+                  }} />
+                  <ProviderSwitch name="Firebase" detail="Cloud Firestore" status="setup" label="Adapter and credentials not configured" active={false} onToggle={() => {
+                    notify.warning('Firebase is not ready. Add its adapter and Firebase configuration before activating it.');
+                  }} />
+                  <ProviderSwitch name="MongoDB" detail="MongoDB database" status="setup" label="Server adapter not configured" active={false} onToggle={() => {
+                    notify.warning('MongoDB is not ready. Add and configure its server adapter before activating it.');
+                  }} />
+                  <ProviderSwitch name="Appwrite" detail="Appwrite database" status="setup" label="Adapter and credentials not configured" active={false} onToggle={() => {
+                    notify.warning('Appwrite is not ready. Add its adapter and project credentials before activating it.');
+                  }} />
                 </div>
 
                 <button
@@ -204,27 +210,19 @@ export function ControlCenter() {
                   <span className="ml-auto text-xs text-color_5">One active provider</span>
                 </div>
 
-                <label htmlFor="auth-provider" className="mb-2 block text-xs font-medium text-color_5">
-                  Active authentication
-                </label>
-                <select
-                  id="auth-provider"
-                  value="demo"
-                  className="w-full rounded-lg border border-color_3 bg-color_1 px-3 py-2 text-sm text-color_4"
-                  aria-describedby="auth-provider-help"
-                >
-                  <option value="demo">Demo Auth — Active</option>
-                  <option value="local_session" disabled>Local Session — Coming in a later step</option>
-                  <option value="oauth" disabled>OAuth — Coming in a later step</option>
-                </select>
-                <p id="auth-provider-help" className="mt-2 text-xs text-color_5">
-                  Demo Auth is the only authentication adapter ready to run right now. The other choices stay locked until their adapters are implemented.
+                <p className="mb-3 text-xs text-color_5">
+                  Turn on one authentication provider. The current demo provider stays active if another provider is not ready.
                 </p>
-
-                <div className="mt-4 space-y-3 border-t border-color_3 pt-4">
-                  <ProviderRow name="Demo Auth" detail="Browser-based test session" status="active" label="Ready and active" />
-                  <ProviderRow name="Local Session" detail="Server-managed sessions" status="setup" label="Not configured" />
-                  <ProviderRow name="OAuth" detail="Google / GitHub sign-in" status="setup" label="Not configured" />
+                <div className="space-y-4 border-t border-color_3 pt-4">
+                  <ProviderSwitch name="Demo Auth" detail="Browser-based test session" status="active" label="Ready · Active" active={true} onToggle={() => {
+                    notify.warning('Demo Auth is your only working authentication provider. Set up another auth provider before switching it off.');
+                  }} />
+                  <ProviderSwitch name="Local Session" detail="Server-managed sessions" status="setup" label="Adapter and session storage not configured" active={false} onToggle={() => {
+                    notify.warning('Local Session is not ready. Implement its server-side session adapter and configure its storage first.');
+                  }} />
+                  <ProviderSwitch name="OAuth" detail="Google / GitHub sign-in" status="setup" label="OAuth adapter and credentials not configured" active={false} onToggle={() => {
+                    notify.warning('OAuth is not ready. Implement the OAuth adapter and configure your provider credentials first.');
+                  }} />
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-color_3 pt-4">
@@ -257,7 +255,7 @@ export function ControlCenter() {
 
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-color_2 p-3 text-xs text-color_5">
               <CircleHelp size={16} className="mt-0.5 shrink-0" />
-              <p>Only ready providers can be selected. LocalStorage and Demo Auth are for local testing only. Other providers remain visible but disabled until they are fully wired and tested.</p>
+              <p>Switches show provider status. An unavailable provider cannot become active; the current working provider stays on until a replacement is configured and passes its checks. LocalStorage and Demo Auth are for local testing only.</p>
             </div>
             {message && <p role="status" className="mt-3 rounded-lg border border-color_3 p-3 text-sm text-color_5">{message}</p>}
           </section>
