@@ -25,6 +25,10 @@ Clone this repository to build and deploy ANY application—E-Commerce, SaaS, Bl
 
 ## 2. Folder & File Structure
 
+```bash
+   tree src -L 4 -I "node_modules|dist|build"
+```
+
 ```python
 universal-starter-app/
 ├── .env.example                 # Env template (committed)
@@ -295,7 +299,102 @@ ___
 6. Run `npm run build && npm run dev` to verify zero TypeScript or build errors.
 
 ___
+___
 
+# Database
+
+This starter kit uses a **Switch + Adapter** pattern (`src/DB/db/db_switch.ts`). The app code only ever calls `db.getAll()`, `db.getById()`, `db.insert()`, `db.update()`, and `db.remove()`—allowing you to swap databases in one place (`src/DB/db/db_<database>.ts`) without rewriting your features.
+
+### Universal AI Adapter Generator Prompt
+
+Copy the prompt below, fill in `Database: { ... }` on the first line (e.g., `MongoDB`, `Supabase`, `Firebase`, `PostgreSQL`), and paste it into any AI to generate a zero-edit adapter file:
+
+```markdown
+Database: { MongoDB }
+
+Write a complete, production-ready TypeScript database adapter file (`src/DB/db_services/db_<database_lowercase>.ts`) for a Next.js App Router project using the official Node/TypeScript SDK for the Database specified above.
+
+Do NOT ask about my rest-of-app folder structure. Follow EVERY rule below strictly so the output compiles with zero edits:
+
+1. Import the contract directly using: `import type { BaseRecord, DbContract } from "../db_contract";` (do NOT re-declare `BaseRecord` or `DbContract` in this file).
+
+2. Implement ONLY these exact 5 method names, generic constraints, and return types from `DbContract`:
+
+export interface BaseRecord {
+  id: string;
+  created_at?: string;
+}
+
+export interface DbContract {
+  getAll<T extends BaseRecord>(collection: string): Promise<T[]>;
+  getById<T extends BaseRecord>(collection: string, id: string): Promise<T | null>;
+  insert<T extends Partial<BaseRecord>>(collection: string, data: T): Promise<T & BaseRecord>;
+  update<T extends Partial<BaseRecord>>(collection: string, id: string, data: T): Promise<T & BaseRecord>;
+  remove(collection: string, id: string): Promise<void>;
+}
+
+(Do NOT rename them to `findAll`, `findById`, or `delete`. `insert` and `update` MUST accept `data: T` where `T extends Partial<BaseRecord>` and return `Promise<T & BaseRecord>`. `remove` MUST return `Promise<void>`.)
+
+3. Export the adapter strictly as: `export const db_<database_lowercase>: DbContract = { ... };` (plus `export default db_<database_lowercase>;`).
+
+4. Lazy-load all required `process.env.*` credentials INSIDE a connection/client helper function—NEVER throw missing env errors at the top level of the file, because this file is imported even when this database switch is turned OFF.
+
+5. Cache the database client/connection pool on `global` (resetting the cache on connection failure) so Next.js hot-reloading does not exhaust connections.
+
+6. Map each `collection` string to the corresponding table, collection, or document path in the target database, validating `collection` names to block injection or invalid path characters.
+
+7. Normalize IDs automatically: always return a plain string `id` property on every record (converting native IDs such as MongoDB `_id` / `ObjectId`, Firestore doc IDs, or Appwrite `$id` into `id`), and properly parse/validate incoming string `id` arguments for `getById`, `update`, and `remove`.
+
+8. On `insert`, ignore any `id`, `_id`, `$id`, or `created_at` passed in `data`, generate a fresh native/UUID `id`, attach `created_at: new Date().toISOString()` as an ISO string (snake_case `created_at`, NOT `createdAt`), and throw an error if the inserted record cannot be retrieved so `insert` never returns `null`.
+
+9. On `update`, strip `id`, `_id`, `$id`, and `created_at` from the incoming payload, sanitize keys to prevent query/operator injection, and throw an error if no record matches `id` so `update` never returns `null`.
+
+10. Output ONLY:
+    - The exact `npm install <package>` command
+    - The required `.env.local` variable names
+    - The complete, copy-pasteable TypeScript code for `src/DB/db_services/db_<database_lowercase>.ts` (no extra explanations or placeholders).
+
+11. write comments like eg. 
+// --------------------------------------------------
+// CONNECTION HELPER
+// Credentials are loaded lazily.
+// --------------------------------------------------
+
+```
+
+---
+### How to Add the Database
+(e.g., MongoDB / Supabase / Firebase)
+#### 1. Install Driver & Add Environment Variables
+
+Install the official `<database_lowercase>` package (e.g., `mongodb`):
+
+```bash
+npm install <package-name> # e.g., npm install mongodb
+```
+
+Add your connection credentials to `.env.local` (e.g., for MongoDB):
+
+```bash
+# Example (MongoDB):
+MONGODB_URI="mongodb+srv://<username>:<password>@cluster.mongodb.net/"
+MONGODB_DB="starter_app"
+```
+
+#### 2. Activate `<Database>` in the Switch
+
+1. Save the generated adapter at `src/DB/db/db_<database_name>.ts` (e.g., `src/DB/db/db_mongodb.ts`).
+2. Add `<database_name>: true` (and set all other databases to `false`) inside `src/DB/db/db_switches.ts`.
+3. Import `db_<database_name>` and wire it into `src/DB/db/db_switch.ts`.
+4. Call `db` from **Server Components** or **Server Actions** (`'use server'`), since server-side database drivers (`mongodb`, `pg`, `firebase-admin`) run strictly on the server.
+
+___
+
+
+
+
+
+___
 # Extra Features: 
 ## THEME:
 ####  An 8-Color Theme Engine (`src/shared/themes/`)

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { WEB_APP_SWITCHES } from '@/web_apps/web_app_switches';
 import EcommerceApp from '@/web_apps/ecommerce';
@@ -13,7 +14,7 @@ const APP_COMPONENTS: Record<string, React.ComponentType<{ slug?: string[] }>> =
   saas: SaasApp,
 };
 
-export default async function WebAppCatchAllPage({
+async function WebAppResolver({
   params,
 }: {
   params: Promise<{ web_app: string; slug?: string[] }>;
@@ -27,4 +28,16 @@ export default async function WebAppCatchAllPage({
   }
 
   return <AppComponent slug={slug} />;
+}
+
+export default function WebAppCatchAllPage({
+  params,
+}: {
+  params: Promise<{ web_app: string; slug?: string[] }>;
+}) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-color_1" />}>
+      <WebAppResolver params={params} />
+    </Suspense>
+  );
 }
