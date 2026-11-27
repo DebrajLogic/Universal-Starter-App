@@ -1,0 +1,291 @@
+# Universal Starter App (Next.js Modular Engine)
+
+A production-ready, plug-and-play Next.js (App Router + TypeScript + Tailwind CSS) starter template. 
+
+Clone this repository to build and deploy ANY application—E-Commerce, SaaS, Blog, or Hybrid—without re-configuring databases, authentication, or core infrastructure.
+
+---
+
+## 1. Core Architectural Rules (Read First)
+
+1. **Zero Cross-App Imports:** Mini-apps inside `src/web_apps/` are completely independent. Deleting any folder inside `src/web_apps/` (and turning it `false` in `web_app_switches.ts`) must never break the rest of the build.
+
+2. **One-Way Dependency Flow:**
+   - `src/web_apps/*` can import from `src/DB/`, `src/AUTH/`, and `src/shared/`.
+   - `src/web_apps/*` can **NEVER** import from another `src/web_apps/*` folder.
+   - `src/shared/` can **NEVER** import from `src/web_apps/`.
+
+3. **Adapter-Only Infrastructure:** Business logic never calls Supabase, MongoDB, Firebase, or NextAuth directly. Always import `db` from `@/DB/db/db_switch` and `auth` from `@/AUTH/auth/auth_switch`.
+
+4. **Shared Database Table Prefixing:** Multiple deployed apps can share a single database instance. Prefix all tables/collections with the mini-app's name (e.g., `ecom_products`, `blog_posts`, `saas_workspaces`). Only the `users` table is shared.
+
+5. **App-Controlled Chrome:** `src/app/layout.tsx` provides only the bare HTML shell and global plugins. Each `web_app` renders its own custom-styled Header and Footer (or imports the default ones from `src/shared/layout/`).
+
+---
+
+## 2. Folder & File Structure
+
+```python
+universal-starter-app/
+├── .env.example                 # Env template (committed)
+├── .env.local                   # Real secrets (git-ignored)
+├── .gitignore
+├── package.json
+└── README.md
+│
+└── src/
+    ├── app/                     # 1. NEXT.JS ROUTING (Traffic cop)
+    │   ├── layout.tsx           # Bare HTML shell + global plugins
+    │   ├── page.tsx             # Home page (lists active web_apps)
+    │   ├── not-found.tsx        # Global 404 page
+    │   ├── [web_app]/
+    │   │   └── [[...slug]]/
+    │   │       └── page.tsx     # Catch-all router for mini-apps
+    │   └── api/
+    │       ├── auth/
+    │       │   └── [...nextauth]/
+    │       │       └── route.ts # NextAuth / OAuth API route
+    │       └── health/
+    │           └── route.ts     # 200 OK health check endpoint
+    │
+    ├── web_apps/                # 2. MINI-APPS (Delete-safe)
+    │   ├── web_app_switches.ts  # ON/OFF switches for mini-apps
+    │   ├── ecommerce/           # Store app (tables: ecom_*)
+    │   ├── blog/                # Blog app (tables: blog_*)
+    │   └── saas/                # SaaS app (tables: saas_*)
+    │
+    ├── DB/                      # 3. DATABASE SWITCHBOARD
+    │   ├── config/
+    │   │   ├── db_switches.ts   # ON/OFF: local, supabase, firebase, mongo
+    │   │   └── db_env.ts        # Checks keys ONLY for ON databases
+    │   └── db/
+    │       ├── db_contract.ts   # Shared CRUD rules
+    │       ├── db_switch.ts     # Exports active `db` adapter
+    │       └── db_services/     # Database implementations
+    │           ├── db_localstorage.ts
+    │           ├── db_supabase.ts
+    │           ├── db_firebase.ts
+    │           └── db_mongodb.ts
+    │
+    ├── AUTH/                    # 4. AUTH SWITCHBOARD
+    │   ├── config/
+    │   │   ├── auth_switches.ts # ON/OFF: demo, local_session, oauth
+    │   │   └── auth_env.ts      # Checks keys ONLY for ON auth
+    │   └── auth/
+    │       ├── auth_contract.ts # Shared login/user rules
+    │       ├── auth_switch.ts   # Exports active `auth` adapter
+    │       └── auth_services/   # Auth implementations
+    │           ├── auth_demo.ts
+    │           ├── auth_local_session.ts
+    │           └── auth_oauth.ts
+    │
+    └── shared/                  # 5. SHARED UI & PLUGINS
+        ├── ui/                  # Basic UI (Button, Input, Modal)
+        ├── layout/              # Default Header.tsx & Footer.tsx
+        ├── plugins/             # Global add-ons (toast, dark mode)
+        │   ├── plugin_switches.ts
+        │   └── toast/
+        └── utils/               # Helper functions (date, price, cn)
+
+```
+
+---
+
+## 3. Master Environment Template (`.env.example`)
+
+Copy `.env.example` to `.env.local`. **You only need to fill in variables for switches set to `true` (`ON`).**
+
+```python
+# ==============================================================================
+# UNIVERSAL STARTER APP - MASTER ENVIRONMENT VARIABLES
+# ==============================================================================
+# NOTE: You DO NOT need to fill in every key below!
+# Only fill in the sections that are turned ON (true) in:
+# -> src/DB/config/db_switches.ts
+# -> src/AUTH/config/auth_switches.ts
+# ==============================================================================
+
+
+# ------------------------------------------------------------------------------
+# 1. APP & CORE SETTINGS (Always Recommended)
+# ------------------------------------------------------------------------------
+NEXT_PUBLIC_APP_NAME="UniversalStarterApp"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+
+# ------------------------------------------------------------------------------
+# 2. DATABASE: SUPABASE (PostgreSQL)
+# Required ONLY when DB_SWITCHES.supabase = true
+# ------------------------------------------------------------------------------
+NEXT_PUBLIC_SUPABASE_URL=""
+NEXT_PUBLIC_SUPABASE_ANON_KEY=""
+SUPABASE_SERVICE_ROLE_KEY=""
+
+
+# ------------------------------------------------------------------------------
+# 3. DATABASE: MONGODB ATLAS
+# Required ONLY when DB_SWITCHES.mongodb = true
+# ------------------------------------------------------------------------------
+MONGODB_URI=""
+MONGODB_DB_NAME="universal_portfolio_db"
+
+
+# ------------------------------------------------------------------------------
+# 4. DATABASE: FIREBASE (Firestore)
+# Required ONLY when DB_SWITCHES.firebase = true
+# ------------------------------------------------------------------------------
+NEXT_PUBLIC_FIREBASE_API_KEY=""
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=""
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=""
+FIREBASE_CLIENT_EMAIL=""
+FIREBASE_PRIVATE_KEY=""
+
+
+# ------------------------------------------------------------------------------
+# 5. AUTHENTICATION (Auth.js / OAuth)
+# Required ONLY when AUTH_SWITCHES.oauth = true
+# ------------------------------------------------------------------------------
+AUTH_SECRET=""
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+
+
+# ------------------------------------------------------------------------------
+# 6. PAYMENTS (Razorpay / Stripe)
+# Required ONLY when using payment plugins/features
+# ------------------------------------------------------------------------------
+# Razorpay (India / Global)
+NEXT_PUBLIC_RAZORPAY_KEY_ID=""
+RAZORPAY_KEY_SECRET=""
+RAZORPAY_WEBHOOK_SECRET=""
+
+# Stripe (Optional alternative)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=""
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
+
+
+# ------------------------------------------------------------------------------
+# 7. EMAIL NOTIFICATIONS (Resend / SMTP)
+# Required ONLY when using email notifications
+# ------------------------------------------------------------------------------
+RESEND_API_KEY=""
+EMAIL_FROM="onboarding@yourdomain.com"
+
+
+# ------------------------------------------------------------------------------
+# 8. AI & EXTERNAL APIs (Optional Plugins)
+# ------------------------------------------------------------------------------
+GEMINI_API_KEY=""
+OPENAI_API_KEY=""
+```
+
+---
+
+## 4. Developer & AI Workflows
+
+### How to Add a New Mini-App
+1. Create a new folder: `src/web_apps/<app_name>/` with an `index.tsx` entry component.
+2. Prefix all database collections/tables inside that app with `<app_name>_`.
+3. Register `<app_name>` in `src/web_apps/web_app_switches.ts` and set `enabled: true`.
+4. Access it immediately at `/<app_name>`.
+
+### How to Remove a Mini-App
+1. Delete `src/web_apps/<app_name>/`.
+2. Remove `<app_name>` from `src/web_apps/web_app_switches.ts`.
+3. Run `npm run build` (no route files or shared layouts need editing).
+
+### How to Switch Database or Auth Providers
+1. Open `src/DB/config/db_switches.ts` (or `src/AUTH/config/auth_switches.ts`).
+2. Set the desired provider to `true` and others to `false`.
+3. Add the matching keys in `.env.local` (if using `localstorage` + `demo`, zero `.env` keys are required).
+
+
+---
+
+## Step-by-Step Build Guide
+
+### Phase 1: Spin Up the Blank Next.js Stage
+1. Create the project (`universal-starter-app`):
+   ```bash
+   npx create-next-app@latest universal-starter-app --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
+   ```
+2. Enter the project folder:
+   ```bash
+   cd universal-starter-app
+   ```
+3. Install core dependencies (`zod` + `lucide-react`):
+   ```bash
+   npm install zod lucide-react
+   ```
+___
+
+### Phase 2: Create Environment Files & Folder Skeleton
+
+1. Create `.env.example` at the project root using Section 3 above.
+
+2. Copy `.env.example` to `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Create the full `src/` directory skeleton:
+
+```bash
+mkdir -p "src/app/[web_app]/[[...slug]]" "src/app/api/auth/[...nextauth]" "src/app/api/health" "src/web_apps/ecommerce" "src/web_apps/blog" "src/web_apps/saas" "src/DB/config" "src/DB/db/db_services" "src/AUTH/config" "src/AUTH/auth/auth_services" "src/shared/ui" "src/shared/layout" "src/shared/plugins/toast" "src/shared/utils"
+```
+___
+### Phase 3: Wire Up the `src/DB/` Circuit Breaker
+
+1. Create `src/DB/config/db_switches.ts` with `localstorage: true` and cloud databases set to `false`.
+
+2. Create `src/DB/config/db_env.ts` to validate `.env.local` keys only for active databases.
+
+3. Create `src/DB/db/db_contract.ts` defining the shared CRUD rules (`getAll`, `getById`, `insert`, `update`, `remove`).
+
+4. Create `src/DB/db/db_services/db_localstorage.ts` and the three cloud stubs (`db_supabase.ts`, `db_mongodb.ts`, `db_firebase.ts`).
+
+5. Create `src/DB/db/db_switch.ts` to export the active `db` adapter based on `DB_SWITCHES`.
+
+___
+### Phase 4: Wire Up the `src/AUTH/` Circuit Breaker
+
+1. Create `src/AUTH/config/auth_switches.ts` with `demo: true` and `local_session` / `oauth` set to `false`.
+
+2. Create `src/AUTH/config/auth_env.ts` to validate `.env.local` keys only when `oauth` is ON.
+
+3. Create `src/AUTH/auth/auth_contract.ts` defining the `AuthUser` shape and login/logout rules.
+
+4. Create `src/AUTH/auth/auth_services/auth_demo.ts` and the two stubs (`auth_local_session.ts`, `auth_oauth.ts`).
+
+5. Create `src/AUTH/auth/auth_switch.ts` to export the active `auth` adapter based on `AUTH_SWITCHES`.
+
+___
+### Phase 5: Build the `src/shared/` Toolbox
+
+1. Create `src/shared/utils/helpers.ts` with pure formatting helpers (`cn`, `formatCurrency`, `formatDate`).
+
+2. Create `src/shared/plugins/plugin_switches.ts` with `toast: true` to toggle global plugins.
+
+3. Create `src/shared/plugins/toast/ToastPlugin.tsx` exporting `ToastProvider` and `notify` (`success`, `error`, `info`).
+
+4. Create `src/shared/layout/Header.tsx` and `src/shared/layout/Footer.tsx` as configurable default shells that any mini-app can style or replace.
+
+___
+### Phase 6: Wire Up `src/web_apps/` & `src/app/` Routing
+
+1. Create `src/web_apps/web_app_switches.ts` to register and toggle mini-apps (`ecommerce`, `blog`, `saas`).
+
+2. Create `index.tsx` inside `src/web_apps/ecommerce/`, `src/web_apps/blog/`, and `src/web_apps/saas/`, each with its own custom-styled `Header` and `Footer`.
+
+3. Create `src/app/[web_app]/[[...slug]]/page.tsx` to route URLs dynamically to active mini-apps.
+
+4. Update `src/app/layout.tsx` (mounting `ToastProvider`) and `src/app/page.tsx` (displaying active mini-apps and circuit-breaker status).
+
+5. Create `src/app/api/health/route.ts` for deployment health checks.
+
+6. Run `npm run build && npm run dev` to verify zero TypeScript or build errors.
+
