@@ -207,10 +207,10 @@ OPENAI_API_KEY=""
 
 # Step-by-Step Build Guide
 We'll build in 6 Phases:
-• Next.js App Router + TypeScript + Tailwind v4 `(Phase 1–2)`
-• Database & Auth circuit breakers `(Phase 3–4)`
-• Shared layout, helpers & toast plugin `(Phase 5)`
-• Dynamic mini-app catch-all routing + health endpoint `(Phase 6)`
+* Next.js App Router + TypeScript + Tailwind v4 `(Phase 1–2)`
+* Database & Auth circuit breakers `(Phase 3–4)`
+* Shared layout, helpers & toast plugin `(Phase 5)`
+* Dynamic mini-app catch-all routing + health endpoint `(Phase 6)`
 
 ### Phase 1: Spin Up the Blank Next.js Stage
 1. Create the project (`universal-starter-app`):
@@ -296,23 +296,46 @@ ___
 
 ___
 
-## Extra Features: 
-### An 8-Color Theme Engine (`src/shared/themes/`)
+# Extra Features: 
+## THEME:
+####  An 8-Color Theme Engine (`src/shared/themes/`)
 
 The starter template includes a plug-and-play theme system with **Dark Mode as default** and a built-in Light/Dark toggle in the default `Header`. All UI elements use 8 numbered color tokens (`color_1`–`color_8`) so swapping themes repaints the entire app automatically:
 
-| Token | Tailwind Classes | Visual Role |
-| :--- | :--- | :--- |
-| **`color_1`** | `bg-color_1` | Main page background |
-| **`color_2`** | `bg-color_2` | Cards, Header, Footer, inputs |
-| **`color_3`** | `border-color_3` | Borders and dividers |
-| **`color_4`** | `text-color_4` | Primary text and headings |
-| **`color_5`** | `text-color_5` | Muted / secondary text |
-| **`color_6`** | `bg-color_6`, `text-color_6` | Primary brand accent |
-| **`color_7`** | `bg-color_7`, `text-color_7` | Secondary brand accent |
-| **`color_8`** | `bg-color_8`, `text-color_8` | Danger / error actions |
+| Token         | Tailwind Classes             | Visual Role                   |
+| :------------ | :--------------------------- | :---------------------------- |
+| **`color_1`** | `bg-color_1`                 | Main page background          |
+| **`color_2`** | `bg-color_2`                 | Cards, Header, Footer, inputs |
+| **`color_3`** | `border-color_3`             | Borders and dividers          |
+| **`color_4`** | `text-color_4`               | Primary text and headings     |
+| **`color_5`** | `text-color_5`               | Muted / secondary text        |
+| **`color_6`** | `bg-color_6`, `text-color_6` | Primary brand accent          |
+| **`color_7`** | `bg-color_7`, `text-color_7` | Secondary brand accent        |
+| **`color_8`** | `bg-color_8`, `text-color_8` | Danger / error actions        |
 
 * **Switch Active Theme:** Open `src/shared/themes/theme_switch.ts` and change `ACTIVE_THEME` (e.g., from `theme_1` to `theme_2`).
 * **Add a New Theme:** Create `src/shared/themes/presets/theme_3.ts` following `theme_contract.ts` (defining both `dark` and `light` palettes) and export it in `theme_switch.ts`.
 
+#### AI Prompt to Generate a New Theme (`theme_<X>.ts`)
+
+Prompt:
+```text
+Create a new TypeScript theme file (`theme_<x>.ts`) for my Universal Starter App following `src/shared/themes/theme_contract.ts`.
+
+Vibe / Brand Style: [DESCRIBE YOUR VIBE HERE — e.g., "Warm Sunset Amber", "Minimalist Nordic Paper", or "Cyberpunk Neon"]
+
+Requirements:
+1. Export `export const theme_3: ThemePreset` with both `dark` and `light` objects.
+2. Every mode must define all 8 CSS variables with strong WCAG contrast:
+   - `--color_1`: Main page background
+   - `--color_2`: Card / Header / Footer background (distinct from `--color_1`)
+   - `--color_3`: Borders and dividers
+   - `--color_4`: Primary crisp text (high contrast against `--color_1` and `--color_2`)
+   - `--color_5`: Muted / secondary text
+   - `--color_6`: Primary brand accent (buttons, active links)
+   - `--color_7`: Secondary brand accent (badges, highlights)
+   - `--color_8`: Danger / error / delete accent
+3. Give the `light` mode a subtle brand-tinted background (`--color_1`) and crisp white cards (`--color_2`) so it feels tailored rather than generic plain white.
+4. Provide only the complete, copy-pasteable TypeScript code.
+```
 
