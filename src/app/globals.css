@@ -1,26 +1,23 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* =============================================================================
+   MASTER 8-COLOR THEME PALETTE (Tailwind v4 direct variables)
+   ============================================================================= */
+@theme {
+  --color-color_1: #09090b; /* Main page background */
+  --color-color_2: #18181b; /* Cards, Header, Footer */
+  --color-color_3: #27272a; /* Borders & dividers */
+  --color-color_4: #fafafa; /* Primary text */
+  --color-color_5: #a1a1aa; /* Muted / secondary text */
+  --color-color_6: #6366f1; /* Primary brand color */
+  --color-color_7: #10b981; /* Secondary brand color */
+  --color-color_8: #ef4444; /* Danger / error color */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* =============================================================================
+   BASE PAGE DEFAULTS
+   ============================================================================= */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-color_1);
+  color: var(--color-color_4);
 }

@@ -1,7 +1,7 @@
 import { cn } from '@/shared/utils/helpers';
 
 // =============================================================================
-// CONFIGURABLE DEFAULT FOOTER (Mini-apps can customize or replace this)
+// CONFIGURABLE DEFAULT FOOTER (Uses color_1..8 tokens)
 // =============================================================================
 interface FooterProps {
   appName?: string;
@@ -10,7 +10,12 @@ interface FooterProps {
 
 export function Footer({ appName = 'UniversalStarterApp', className }: FooterProps) {
   return (
-    <footer className={cn('w-full border-t bg-slate-50 px-6 py-6 text-center text-sm text-slate-500', className)}>
+    <footer
+      className={cn(
+        'w-full border-t border-color_3 bg-color_2 px-6 py-6 text-center text-sm text-color_5',
+        className
+      )}
+    >
       <p>
         {appName} &copy; {new Date().getFullYear()} — Directed with ❤️, Built with AI on the Universal Modular Engine
       </p>
