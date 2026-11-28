@@ -116,6 +116,15 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
             </button>
           </form>
 
+          {!isRegister && (
+            <aside className="mt-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 text-xs text-color_5">
+              <p className="font-semibold text-color_4">Temporary admin login — local testing</p>
+              <p className="mt-2">Email: <code className="font-semibold">admin@local.test</code></p>
+              <p className="mt-1">Password: <code className="font-semibold">Admin123!</code></p>
+              <p className="mt-2 leading-5">First, create this account from the Register page using these details. The admin role is assigned by the local email allowlist. Remove this box before launch.</p>
+            </aside>
+          )}
+
           <p className="mt-5 text-center text-sm text-color_5">
             {isRegister ? 'Already have an account?' : 'New here?'}{' '}
             <Link
