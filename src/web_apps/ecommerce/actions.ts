@@ -1,6 +1,6 @@
 // Mini-app writes. Swap the active DB adapter centrally; callers stay unchanged.
 import { db } from '@/DB/db/db_switch';
-import type { Product, Order } from './types';
+import type { Product, Order, CartLine, CartRecord } from './types';
 
 export async function createProduct(data: Partial<Product>) {
   return db.insert('ecom_products', data);
@@ -16,4 +16,11 @@ export async function createOrder(data: Omit<Partial<Order>, 'id'>) {
 }
 export async function updateOrder(id: string, data: Partial<Order>) {
   return db.update('ecom_orders', id, data);
+}
+
+export async function saveCart(userId: string, items: CartLine[]): Promise<void> {
+  const carts = await db.getAll<CartRecord>('ecom_carts');
+  const existing = carts.find(cart => cart.user_id === userId);
+  if (existing) await db.update('ecom_carts', existing.id, { items });
+  else await db.insert('ecom_carts', { user_id: userId, items });
 }
