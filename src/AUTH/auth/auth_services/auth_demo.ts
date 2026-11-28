@@ -42,6 +42,10 @@ export const authDemo: AuthContract = {
     throw new Error('Sign-up is not available in the legacy demo provider.');
   },
 
+  async signUp(): Promise<AuthUser> {
+    throw new Error('Sign-up is not available in the legacy demo provider.');
+  },
+
   async signIn(): Promise<AuthUser> {
     if (!isBrowser()) throw new Error('Demo sign-in is available in the browser only.');
     window.localStorage.setItem(
