@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight, Search, ShoppingBag, UserRound, LayoutDashboard,
+  ArrowLeft, ArrowRight, Search, ShoppingBag, UserRound, LayoutDashboard,
   Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle,
 } from 'lucide-react';
 import { db } from '@/DB/db/db_switch';
@@ -20,6 +20,7 @@ type Product = BaseRecord & {
   category: string;
   price: number;
   compare_at_price?: number;
+  discount_percent?: number;
   image?: string;
   stock: number;
   active: boolean;
@@ -50,6 +51,8 @@ const PRODUCTS = [
 ];
 
 const money = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+const discountPercent = (product: Product) => Number.isFinite(product.discount_percent) ? Math.min(95, Math.max(0, Number(product.discount_percent))) : product.compare_at_price && product.compare_at_price > product.price ? Math.round((1 - product.price / product.compare_at_price) * 100) : 0;
+const salePrice = (product: Product) => product.discount_percent && product.discount_percent > 0 ? Math.round(product.price * (1 - product.discount_percent / 100)) : product.price;
 const CART_KEY_PREFIX = 'ecom_cart_v1_';
 
 function readCart(userId: string): CartLine[] {
@@ -107,7 +110,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [checkoutPostal, setCheckoutPostal] = useState('');
   const [formError, setFormError] = useState('');
   const [editing, setEditing] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({ name: '', description: '', category: 'Footwear', price: '1999', stock: '10', image: '' });
+  const [productForm, setProductForm] = useState({ name: '', description: '', category: 'Footwear', price: '1999', discount: '0', stock: '10', image: '' });
   const [productEntryMode, setProductEntryMode] = useState<'manual' | 'json'>('manual');
   const [productJson, setProductJson] = useState('');
   const [jsonError, setJsonError] = useState('');
@@ -141,7 +144,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     let mounted = true;
     auth.getCurrentUser().then(current => { if (mounted) { setUser(current); if (current) setCart(readCart(current.id)); } }).catch(() => { if (mounted) setUser(null); });
     void loadData();
-    const syncCart = () => setCart(readCart());
+    const syncCart = () => { if (user) setCart(readCart(user.id)); };
     window.addEventListener('storage', syncCart);
     return () => { mounted = false; window.removeEventListener('storage', syncCart); };
   }, [loadData]);
@@ -174,7 +177,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     const product = products.find(p => p.id === line.product_id);
     return product ? { ...line, product } : null;
   }).filter(Boolean) as (CartLine & { product: Product })[], [cart, products]);
-  const subtotal = cartDetails.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
+  const subtotal = cartDetails.reduce((sum, line) => sum + salePrice(line.product) * line.quantity, 0);
   const shipping = subtotal === 0 || subtotal >= 3000 ? 0 : 99;
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
 
@@ -209,7 +212,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       for (const line of cartDetails) {
         const latest = freshProducts.find(p => p.id === line.product.id);
         if (!latest || !latest.active || latest.stock < line.quantity) throw new Error(latest ? latest.name + ' does not have enough stock.' : 'A product in your bag is no longer available.');
-        orderItems.push({ product_id: latest.id, name: latest.name, price: latest.price, quantity: line.quantity });
+        orderItems.push({ product_id: latest.id, name: latest.name, price: salePrice(latest), quantity: line.quantity });
       }
       for (const item of orderItems) {
         const latest = freshProducts.find(p => p.id === item.product_id)!;
@@ -235,15 +238,15 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     try {
       const payload = {
         name: productForm.name.trim(), description: productForm.description.trim(),
-        category: productForm.category, price: Number(productForm.price),
+        category: productForm.category, price: Number(productForm.price), discount_percent: Number(productForm.discount),
         stock: Number(productForm.stock), image: productForm.image.trim(),
         active: true,
       };
-      if (!payload.name || !payload.description || !Number.isFinite(payload.price) || payload.price <= 0 || !Number.isInteger(payload.stock) || payload.stock < 0) throw new Error('Enter a name, description, valid price, and stock count.');
+      if (!payload.name || !payload.description || !Number.isFinite(payload.price) || payload.price <= 0 || !Number.isInteger(payload.stock) || payload.stock < 0 || !Number.isInteger(payload.discount_percent) || payload.discount_percent < 0 || payload.discount_percent > 95) throw new Error('Enter valid product details. Discount must be a whole number from 0 to 95.');
       if (editing) await db.update('ecom_products', editing.id, payload);
       else await db.insert('ecom_products', payload);
       setEditing(null);
-      setProductForm({ name: '', description: '', category: 'Footwear', price: '1999', stock: '10', image: '' });
+      setProductForm({ name: '', description: '', category: 'Footwear', price: '1999', discount: '0', stock: '10', image: '' });
       await loadData();
       notify.success(editing ? 'Product updated.' : 'Product created.');
     } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not save product.'); }
@@ -274,7 +277,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     const allowedCategories = ['Footwear', 'Bags', 'Tech', 'Accessories', 'Clothing', 'Home'];
     const validated: Array<{
       name: string; description: string; category: string; price: number;
-      stock: number; image?: string; compare_at_price?: number; active: boolean; featured: boolean;
+      stock: number; image?: string; discount_percent: number; active: boolean; featured: boolean;
     }> = [];
 
     for (let index = 0; index < entries.length; index++) {
@@ -290,7 +293,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       const categoryValue = typeof row.category === 'string' ? row.category.trim() : '';
       const price = row.price;
       const stock = row.stock;
-      const compareAt = row.compare_at_price;
+      const discount = row.discount_percent === undefined ? 0 : row.discount_percent;
       const image = row.image;
       if (!name || !description) {
         setJsonError(label + ': "name" and "description" are required text fields.');
@@ -308,8 +311,8 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
         setJsonError(label + ': "stock" must be a whole number (zero or more).');
         return;
       }
-      if (compareAt !== undefined && (typeof compareAt !== 'number' || !Number.isFinite(compareAt) || compareAt <= price)) {
-        setJsonError(label + ': "compare_at_price" must be a number greater than "price".');
+      if (typeof discount !== 'number' || !Number.isInteger(discount) || discount < 0 || discount > 95) {
+        setJsonError(label + ': "discount_percent" must be a whole number from 0 to 95.');
         return;
       }
       if (image !== undefined && typeof image !== 'string') {
@@ -327,7 +330,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       validated.push({
         name, description, category: categoryValue, price, stock,
         ...(typeof image === 'string' && image.trim() ? { image: image.trim() } : {}),
-        ...(typeof compareAt === 'number' ? { compare_at_price: compareAt } : {}),
+        discount_percent: discount,
         active: typeof row.active === 'boolean' ? row.active : true,
         featured: typeof row.featured === 'boolean' ? row.featured : false,
       });
@@ -357,6 +360,18 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     } catch (error) { notify.error(error instanceof Error ? error.message : 'Update failed.'); }
   }
 
+  async function deleteProduct(product: Product) {
+    if (!window.confirm('Delete “' + product.name + '”? This cannot be undone.')) return;
+    setBusy(true);
+    try {
+      await db.remove('ecom_products', product.id);
+      setEditing(current => current?.id === product.id ? null : current);
+      await loadData();
+      notify.success('Product deleted.');
+    } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not delete product.'); }
+    finally { setBusy(false); }
+  }
+
   async function updateOrder(order: Order, status: Order['status']) {
     try {
       await db.update('ecom_orders', order.id, { status });
@@ -373,7 +388,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
   function startEdit(product: Product) {
     setEditing(product);
-    setProductForm({ name: product.name, description: product.description, category: product.category, price: String(product.price), stock: String(product.stock), image: product.image || '' });
+    setProductForm({ name: product.name, description: product.description, category: product.category, price: String(product.price), discount: String(product.discount_percent || 0), stock: String(product.stock), image: product.image || '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -404,6 +419,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
         ...(isAdmin ? [{ label: 'Admin', href: '/ecommerce/admin' }] : []),
       ]} rightSlot={nav} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-5 py-8 sm:px-8 lg:px-10">
+        {page !== 'home' && <div className="mb-6"><Link href={page === 'product' ? '/ecommerce' : page === 'checkout' ? '/ecommerce/cart' : '/ecommerce'} className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"><ArrowLeft size={16}/> {page === 'product' ? 'Back to shop' : page === 'checkout' ? 'Back to cart' : 'Back to shop'}</Link></div>}
         {page === 'home' && <>
           <section className="relative overflow-hidden rounded-[2rem] bg-[#e9e5dc] px-7 py-14 sm:px-14 sm:py-20">
             <div className="relative z-10 max-w-xl">
@@ -450,7 +466,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
         {page === 'orders' && <section className="mx-auto max-w-4xl py-8"><p className="text-xs font-bold uppercase tracking-[0.25em] text-stone-400">Order history</p><h1 className="mt-2 font-serif text-5xl">Your orders</h1><div className="mt-8 rounded-2xl bg-white p-6">{orders.filter(o => o.user_id === user?.id).length === 0 ? <p className="py-12 text-center text-sm text-stone-500">No orders yet. Your next favourite is waiting.</p> : orders.filter(o => o.user_id === user?.id).slice().sort((a,b) => b.created_at.localeCompare(a.created_at)).map(order => <article key={order.id} className="border-b border-stone-100 py-5 last:border-0"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">Order #{order.id.slice(0,8)}</p><p className="mt-1 text-xs text-stone-400">{new Date(order.created_at).toLocaleString()}</p></div><div className="flex items-center gap-3"><StatusPill status={order.status}/><b>{money(order.total)}</b></div></div><div className="mt-4 space-y-1 text-sm text-stone-600">{order.items.map(item => <p key={item.product_id}>{item.name} × {item.quantity}</p>)}</div><p className="mt-3 text-xs text-stone-400">Deliver to: {order.address}</p></article>)}</div></section>}
 
-        {page === 'admin' && <section className="py-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.25em] text-stone-400">Store management</p><h1 className="mt-2 font-serif text-5xl">Admin dashboard</h1><p className="mt-2 text-sm text-stone-500">Manage the catalog and local demo orders.</p></div><span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Local demo admin</span></div><div className="mt-8 grid gap-4 sm:grid-cols-3"><div className="rounded-2xl bg-white p-5"><Package className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{products.length}</p><p className="text-xs text-stone-500">Products</p></div><div className="rounded-2xl bg-white p-5"><ShoppingBag className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{orders.length}</p><p className="text-xs text-stone-500">Orders</p></div><div className="rounded-2xl bg-white p-5"><span className="text-xl font-semibold">₹</span><p className="mt-4 text-3xl font-semibold">{money(orders.filter(o => o.status !== 'cancelled').reduce((sum,o) => sum + o.total,0))}</p><p className="text-xs text-stone-500">Demo order value</p></div></div><div className="mt-8 flex gap-2"><button onClick={() => setAdminTab('products')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'products' ? 'bg-stone-900 text-white' : 'bg-white')}>Products</button><button onClick={() => setAdminTab('orders')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'orders' ? 'bg-stone-900 text-white' : 'bg-white')}>Orders</button></div>{adminTab === 'products' && <div className="mt-5 grid gap-6 lg:grid-cols-[340px_1fr]"><div className="h-fit rounded-2xl bg-white p-5"><h2 className="font-semibold">{editing ? 'Edit product' : 'Add products'}</h2>{!editing && <div className="mt-4 grid grid-cols-2 rounded-full bg-stone-100 p-1"><button type="button" onClick={() => {setProductEntryMode('manual');setJsonError('')}} className={'rounded-full px-3 py-2 text-xs font-semibold ' + (productEntryMode === 'manual' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500')}>One at a time</button><button type="button" onClick={() => {setProductEntryMode('json');setJsonError('')}} className={'rounded-full px-3 py-2 text-xs font-semibold ' + (productEntryMode === 'json' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500')}>Bulk JSON</button></div>}{(editing || productEntryMode === 'manual') ? <form onSubmit={saveProduct} className="mt-4 space-y-3"><input required value={productForm.name} onChange={e => setProductForm({...productForm,name:e.target.value})} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><textarea required value={productForm.description} onChange={e => setProductForm({...productForm,description:e.target.value})} placeholder="Description" rows={3} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><select value={productForm.category} onChange={e => setProductForm({...productForm,category:e.target.value})} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm">{['Footwear','Bags','Tech','Accessories','Clothing','Home'].map(c => <option key={c}>{c}</option>)}</select><div className="grid grid-cols-2 gap-3"><input required type="number" min="1" value={productForm.price} onChange={e => setProductForm({...productForm,price:e.target.value})} placeholder="Price" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm({...productForm,stock:e.target.value})} placeholder="Stock" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/></div><input value={productForm.image} onChange={e => setProductForm({...productForm,image:e.target.value})} placeholder="Image URL (optional)" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><button disabled={busy} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving...' : editing ? 'Save changes' : 'Create product'}</button>{editing && <button type="button" onClick={() => {setEditing(null);setProductForm({name:'',description:'',category:'Footwear',price:'1999',stock:'10',image:''})}} className="w-full rounded-full border border-stone-200 px-4 py-3 text-sm">Cancel edit</button>}</form> : <div className="mt-4 space-y-3"><p className="text-xs leading-5 text-stone-500">Paste a JSON array to add many products at once. All products are checked before anything is saved.</p><textarea value={productJson} onChange={e => {setProductJson(e.target.value);setJsonError('')}} rows={12} spellCheck={false} placeholder={'Paste your products JSON here...'} className="w-full rounded-lg border border-stone-200 px-3 py-3 font-mono text-xs leading-5 outline-none focus:border-stone-500"/>{jsonError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{jsonError}</p>}<button type="button" onClick={() => void importProductsFromJson()} disabled={busy || !productJson.trim()} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Importing products...' : 'Import all products'}</button><button type="button" onClick={() => setProductJson(JSON.stringify({products:[{name:'Everyday Runner',description:'Light cushioned shoes for daily use.',category:'Footwear',price:3499,compare_at_price:4299,stock:18,image:'https://example.com/runner.jpg',active:true,featured:true},{name:'Canvas Weekender',description:'A roomy canvas bag for short trips.',category:'Bags',price:2199,stock:12,active:true,featured:false}]},null,2))} className="w-full rounded-full border border-stone-200 px-4 py-2.5 text-xs font-semibold">Load sample JSON</button><p className="text-[11px] leading-5 text-stone-400">Required: name, description, category, price, stock. Optional: compare_at_price, image, active, featured.</p></div>}</div><div className="overflow-hidden rounded-2xl bg-white"><div className="border-b border-stone-100 p-5 font-semibold">Catalog · {products.length}</div>{products.map(product => <div key={product.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 p-4 last:border-0"><div className="min-w-0"><p className="font-medium">{product.name} {!product.active && <span className="ml-2 text-xs text-stone-400">Hidden</span>}</p><p className="mt-1 text-xs text-stone-500">{product.category} · {money(product.price)} · {product.stock} in stock</p></div><div className="flex items-center gap-2"><button onClick={() => startEdit(product)} className="rounded-full border border-stone-200 p-2" aria-label="Edit product"><Pencil size={15}/></button><button onClick={() => void toggleProduct(product)} className="rounded-full border border-stone-200 px-3 py-2 text-xs">{product.active ? 'Hide' : 'Publish'}</button></div></div>)}</div></div>}{adminTab === 'orders' && <div className="mt-5 overflow-hidden rounded-2xl bg-white">{orders.length === 0 ? <p className="p-10 text-center text-sm text-stone-500">Orders will appear here after checkout.</p> : orders.slice().sort((a,b) => (b.created_at || '').localeCompare(a.created_at || '')).map(order => <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 p-5"><div><p className="font-semibold">#{order.id.slice(0,8)} · {order.customer_name}</p><p className="mt-1 text-xs text-stone-500">{order.customer_email} · {money(order.total)}</p></div><select value={order.status} onChange={e => void updateOrder(order,e.target.value as Order['status'])} className="rounded-lg border border-stone-200 px-3 py-2 text-sm">{['placed','processing','shipped','delivered','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}</select></div>)}</div>}</section>}
+        {page === 'admin' && <section className="py-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.25em] text-stone-400">Store management</p><h1 className="mt-2 font-serif text-5xl">Admin dashboard</h1><p className="mt-2 text-sm text-stone-500">Manage the catalog and local demo orders.</p></div><span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Local demo admin</span></div><div className="mt-8 grid gap-4 sm:grid-cols-3"><div className="rounded-2xl bg-white p-5"><Package className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{products.length}</p><p className="text-xs text-stone-500">Products</p></div><div className="rounded-2xl bg-white p-5"><ShoppingBag className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{orders.length}</p><p className="text-xs text-stone-500">Orders</p></div><div className="rounded-2xl bg-white p-5"><span className="text-xl font-semibold">₹</span><p className="mt-4 text-3xl font-semibold">{money(orders.filter(o => o.status !== 'cancelled').reduce((sum,o) => sum + o.total,0))}</p><p className="text-xs text-stone-500">Demo order value</p></div></div><div className="mt-8 flex gap-2"><button onClick={() => setAdminTab('products')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'products' ? 'bg-stone-900 text-white' : 'bg-white')}>Products</button><button onClick={() => setAdminTab('orders')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'orders' ? 'bg-stone-900 text-white' : 'bg-white')}>Orders</button></div>{adminTab === 'products' && <div className="mt-5 grid gap-6 lg:grid-cols-[340px_1fr]"><div className="h-fit rounded-2xl bg-white p-5"><h2 className="font-semibold">{editing ? 'Edit product' : 'Add products'}</h2>{!editing && <div className="mt-4 grid grid-cols-2 rounded-full bg-stone-100 p-1"><button type="button" onClick={() => {setProductEntryMode('manual');setJsonError('')}} className={'rounded-full px-3 py-2 text-xs font-semibold ' + (productEntryMode === 'manual' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500')}>One at a time</button><button type="button" onClick={() => {setProductEntryMode('json');setJsonError('')}} className={'rounded-full px-3 py-2 text-xs font-semibold ' + (productEntryMode === 'json' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500')}>Bulk JSON</button></div>}{(editing || productEntryMode === 'manual') ? <form onSubmit={saveProduct} className="mt-4 space-y-3"><input required value={productForm.name} onChange={e => setProductForm({...productForm,name:e.target.value})} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><textarea required value={productForm.description} onChange={e => setProductForm({...productForm,description:e.target.value})} placeholder="Description" rows={3} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><select value={productForm.category} onChange={e => setProductForm({...productForm,category:e.target.value})} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm">{['Footwear','Bags','Tech','Accessories','Clothing','Home'].map(c => <option key={c}>{c}</option>)}</select><div className="grid grid-cols-2 gap-3"><div><label className="mb-1 block text-xs text-stone-500">Base price (₹)</label><input required type="number" min="1" value={productForm.price} onChange={e => setProductForm({...productForm,price:e.target.value})} placeholder="Price" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/></div><div><label className="mb-1 block text-xs text-stone-500">Discount (%)</label><input type="number" min="0" max="95" step="1" value={productForm.discount} onChange={e => setProductForm({...productForm,discount:e.target.value})} placeholder="0" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><p className="mt-1 text-[11px] text-stone-400">Sale price: {money(Math.round((Number(productForm.price) || 0) * (1 - (Math.min(95, Math.max(0, Number(productForm.discount) || 0)) / 100))))}</p></div><div><label className="mb-1 block text-xs text-stone-500">Stock</label><input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm({...productForm,stock:e.target.value})} placeholder="Stock" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/></div><input value={productForm.image} onChange={e => setProductForm({...productForm,image:e.target.value})} placeholder="Image URL (optional)" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><button disabled={busy} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving...' : editing ? 'Save changes' : 'Create product'}</button>{editing && <button type="button" onClick={() => {setEditing(null);setProductForm({name:'',description:'',category:'Footwear',price:'1999',stock:'10',image:''})}} className="w-full rounded-full border border-stone-200 px-4 py-3 text-sm">Cancel edit</button>}</form> : <div className="mt-4 space-y-3"><p className="text-xs leading-5 text-stone-500">Paste a JSON array to add many products at once. All products are checked before anything is saved.</p><textarea value={productJson} onChange={e => {setProductJson(e.target.value);setJsonError('')}} rows={12} spellCheck={false} placeholder={'Paste your products JSON here...'} className="w-full rounded-lg border border-stone-200 px-3 py-3 font-mono text-xs leading-5 outline-none focus:border-stone-500"/>{jsonError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{jsonError}</p>}<button type="button" onClick={() => void importProductsFromJson()} disabled={busy || !productJson.trim()} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Importing products...' : 'Import all products'}</button><button type="button" onClick={() => setProductJson(JSON.stringify({products:[{name:'Everyday Runner',description:'Light cushioned shoes for daily use.',category:'Footwear',price:3499,compare_at_price:4299,stock:18,image:'https://example.com/runner.jpg',active:true,featured:true},{name:'Canvas Weekender',description:'A roomy canvas bag for short trips.',category:'Bags',price:2199,stock:12,active:true,featured:false}]},null,2))} className="w-full rounded-full border border-stone-200 px-4 py-2.5 text-xs font-semibold">Load sample JSON</button><p className="text-[11px] leading-5 text-stone-400">Required: name, description, category, price, stock. Optional: compare_at_price, image, active, featured.</p></div>}</div><div className="overflow-hidden rounded-2xl bg-white"><div className="border-b border-stone-100 p-5 font-semibold">Catalog · {products.length}</div>{products.map(product => <div key={product.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 p-4 last:border-0"><div className="flex min-w-0 items-center gap-3"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-stone-100"><ProductArt product={product}/></div><div className="min-w-0"><p className="font-medium">{product.name} {!product.active && <span className="ml-2 text-xs text-stone-400">Hidden</span>}</p><p className="mt-1 text-xs text-stone-500">{product.category} · {money(salePrice(product))} {discountPercent(product) > 0 && <><del className="ml-1">{money(product.price)}</del><span className="ml-2 rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700">{discountPercent(product)}% OFF</span></>} · {product.stock} in stock</p></div></div><div className="flex items-center gap-2"><button onClick={() => startEdit(product)} className="rounded-full border border-stone-200 p-2" aria-label="Edit product"><Pencil size={15}/></button><button onClick={() => void toggleProduct(product)} className="rounded-full border border-stone-200 px-3 py-2 text-xs">{product.active ? 'Hide' : 'Publish'}</button><button onClick={() => void deleteProduct(product)} className="rounded-full border border-red-200 p-2 text-red-600 hover:bg-red-50" aria-label="Delete product"><Trash2 size={15}/></button></div></div>)}</div></div>}{adminTab === 'orders' && <div className="mt-5 overflow-hidden rounded-2xl bg-white">{orders.length === 0 ? <p className="p-10 text-center text-sm text-stone-500">Orders will appear here after checkout.</p> : orders.slice().sort((a,b) => (b.created_at || '').localeCompare(a.created_at || '')).map(order => <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 p-5"><div><p className="font-semibold">#{order.id.slice(0,8)} · {order.customer_name}</p><p className="mt-1 text-xs text-stone-500">{order.customer_email} · {money(order.total)}</p></div><select value={order.status} onChange={e => void updateOrder(order,e.target.value as Order['status'])} className="rounded-lg border border-stone-200 px-3 py-2 text-sm">{['placed','processing','shipped','delivered','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}</select></div>)}</div>}</section>}
       </main>
       <section className="mt-12 border-t border-stone-200 bg-[#f1efe9]"><div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 sm:grid-cols-3"><div><p className="font-serif text-2xl">SHOPCRAFT</p><p className="mt-3 max-w-xs text-sm leading-6 text-stone-500">Thoughtful things for everyday living. Built for the demo, ready to grow.</p></div><div><p className="text-xs font-bold uppercase tracking-widest">Explore</p><div className="mt-4 space-y-2 text-sm text-stone-600"><Link className="block" href="/ecommerce">Shop all</Link><Link className="block" href="/ecommerce/orders">Order history</Link><Link className="block" href="/ecommerce/dashboard">My account</Link></div></div><div><p className="text-xs font-bold uppercase tracking-widest">Local demo</p><p className="mt-4 text-sm leading-6 text-stone-500">Orders and catalog data stay in this browser. Checkout does not collect payment or create a real shipment.</p></div></div></section>
       <Footer appName="ShopCraft" />
