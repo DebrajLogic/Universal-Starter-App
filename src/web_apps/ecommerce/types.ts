@@ -13,3 +13,5 @@ export type Order = BaseRecord & {
   status: 'placed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'; address: string;
 };
 export type Address = BaseRecord & { user_id: string; full_name: string; phone: string; line1: string; city: string; postal_code: string; is_default: boolean };
+
+export type CartRecord = BaseRecord & { user_id: string; items: CartLine[] };
