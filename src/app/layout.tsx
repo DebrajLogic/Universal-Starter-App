@@ -2,14 +2,16 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ToastProvider } from '@/shared/plugins/toast/ToastPlugin';
 import { ThemeProvider } from '@/shared/themes/ThemeProvider';
+import { ControlCenter } from '@/shared/control-center/ControlCenter';
 
 export const metadata: Metadata = {
   title: 'Universal Starter App',
-  description: 'Modular Next.js Engine — Directed with ❤️, Built with AI',
+  description: 'Modular Next.js starter platform for building focused web apps.',
 };
 
 // =============================================================================
-// BARE ROOT SHELL (Mounts ThemeProvider & global plugins ONLY)
+// ROOT SHELL
+// Global providers and the Control Center are available across every route.
 // =============================================================================
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <ToastProvider />
           {children}
+          <ControlCenter />
         </ThemeProvider>
       </body>
     </html>

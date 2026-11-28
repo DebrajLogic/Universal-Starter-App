@@ -1,6 +1,7 @@
 // =============================================================================
 // UNIVERSAL USER SHAPE & AUTH RULES (Every adapter must follow this)
 // =============================================================================
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -10,6 +11,7 @@ export interface AuthUser {
 
 export interface AuthContract {
   getCurrentUser(): Promise<AuthUser | null>;
-  signIn(email?: string): Promise<AuthUser>;
+  signUp(name: string, email: string, password: string): Promise<AuthUser>;
+  signIn(email: string, password: string): Promise<AuthUser>;
   signOut(): Promise<void>;
 }

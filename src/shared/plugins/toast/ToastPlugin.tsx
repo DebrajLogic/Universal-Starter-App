@@ -7,7 +7,7 @@ import { PLUGIN_SWITCHES } from '../plugin_switches';
 // LIGHTWEIGHT GLOBAL TOAST PLUGIN (Zero external dependencies)
 // Any mini-app calls: notify.success("Saved!") or notify.error("Failed!")
 // =============================================================================
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastEventDetail {
   message: string;
@@ -19,6 +19,7 @@ const TOAST_EVENT = 'universal-app-toast';
 export const notify = {
   success: (message: string) => dispatchToast(message, 'success'),
   error: (message: string) => dispatchToast(message, 'error'),
+  warning: (message: string) => dispatchToast(message, 'warning'),
   info: (message: string) => dispatchToast(message, 'info'),
 };
 
@@ -51,6 +52,7 @@ export function ToastProvider() {
     success: 'bg-emerald-600 text-white',
     error: 'bg-rose-600 text-white',
     info: 'bg-slate-900 text-white',
+    warning: 'bg-amber-500 text-slate-950',
   };
 
   return (
