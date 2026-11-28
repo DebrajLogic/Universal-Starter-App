@@ -239,7 +239,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
         active: true,
       };
       if (!payload.name || !payload.description || !Number.isFinite(payload.price) || payload.price <= 0 || !Number.isInteger(payload.stock) || payload.stock < 0) throw new Error('Enter a name, description, valid price, and stock count.');
-      if (editing) await db.update<Product>('ecom_products', editing.id, payload);
+      if (editing) await db.update('ecom_products', editing.id, payload);
       else await db.insert('ecom_products', payload);
       setEditing(null);
       setProductForm({ name: '', description: '', category: 'Footwear', price: '1999', stock: '10', image: '' });
