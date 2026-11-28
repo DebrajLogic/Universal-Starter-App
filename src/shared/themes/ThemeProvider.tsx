@@ -21,6 +21,7 @@ export const useThemeMode = () => useContext(ThemeContext);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ColorMode>('dark');
   const [themeName, setThemeName] = useState<string>(ACTIVE_THEME.name);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const theme = useMemo(() => THEME_REGISTRY.find(item => item.name === themeName) ?? ACTIVE_THEME, [themeName]);
 
   useEffect(() => {
@@ -28,9 +29,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const savedTheme = window.localStorage.getItem('usa_theme_name');
     if (savedMode === 'light' || savedMode === 'dark') setMode(savedMode);
     if (savedTheme && THEME_REGISTRY.some(item => item.name === savedTheme)) setThemeName(savedTheme);
+    setPreferencesLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!preferencesLoaded) return;
     const palette = theme[mode];
     const root = document.documentElement;
     Object.entries(palette).forEach(([key, value]) => {
@@ -41,7 +44,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.colorScheme = mode;
     window.localStorage.setItem('usa_color_mode', mode);
     window.localStorage.setItem('usa_theme_name', theme.name);
-  }, [mode, theme]);
+  }, [mode, theme, preferencesLoaded]);
 
   const value = useMemo(() => ({
     mode,
