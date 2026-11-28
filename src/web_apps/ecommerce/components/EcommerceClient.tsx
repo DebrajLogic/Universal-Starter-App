@@ -290,7 +290,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     const allowedCategories = ['Footwear', 'Bags', 'Tech', 'Accessories', 'Clothing', 'Home'];
     const validated: Array<{
       name: string; description: string; category: string; price: number;
-      stock: number; image?: string; discount_percent: number; active: boolean; featured: boolean;
+      stock: number; image?: string; images?: string[]; discount_percent: number; active: boolean; featured: boolean;
     }> = [];
 
     for (let index = 0; index < entries.length; index++) {
@@ -308,6 +308,11 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       const stock = row.stock;
       const discount = row.discount_percent === undefined ? 0 : row.discount_percent;
       const image = row.image;
+      const images = row.images;
+      if (images !== undefined && (!Array.isArray(images) || images.some(value => typeof value !== 'string'))) {
+        setJsonError(label + ': "images" must be an array of image URL strings.');
+        return;
+      }
       if (!name || !description) {
         setJsonError(label + ': "name" and "description" are required text fields.');
         return;
@@ -343,6 +348,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       validated.push({
         name, description, category: categoryValue, price, stock,
         ...(typeof image === 'string' && image.trim() ? { image: image.trim() } : {}),
+        ...(Array.isArray(images) && images.length ? { images: images.map(value => value.trim()).filter(Boolean) } : {}),
         discount_percent: discount,
         active: typeof row.active === 'boolean' ? row.active : true,
         featured: typeof row.featured === 'boolean' ? row.featured : false,
