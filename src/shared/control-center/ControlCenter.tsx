@@ -51,9 +51,9 @@ function ProviderSwitch({ name, detail, status, label, active, onToggle }: {
         type="button"
         role="switch"
         aria-checked={active}
-        aria-label={`Activate ${name}`}
+        aria-label={active ? `Turn off ${name}` : `Activate ${name}`}
         onClick={handleClick}
-        className={'relative h-7 w-12 shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-color_6 focus:ring-offset-2 transition-colors duration-200 ' + (active ? 'bg-emerald-600' : 'bg-zinc-400')}
+        className={'relative h-7 w-12 shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-color_6 focus:ring-offset-2 transition-colors duration-200 ' + (knobIsOn ? 'bg-emerald-600' : 'bg-zinc-400')}
       >
         <span
           className="absolute left-0.5 top-1 h-5 w-5 rounded-full bg-white shadow-md"
