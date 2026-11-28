@@ -22,16 +22,16 @@ export async function getNotifications(userId: string): Promise<AppNotification[
 }
 
 export async function createNotification(data: Omit<Partial<AppNotification>, 'id'> & Pick<AppNotification, 'user_id' | 'title' | 'message'>): Promise<AppNotification> {
-  const saved = await db.insert<AppNotification>(COLLECTION, {
+  const saved = await db.insert(COLLECTION, {
     ...data,
     created_at: new Date().toISOString(),
   });
   notifyChanged();
-  return saved;
+  return saved as AppNotification;
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  await db.update<AppNotification>(COLLECTION, id, { read_at: new Date().toISOString() });
+  await db.update(COLLECTION, id, { read_at: new Date().toISOString() });
   notifyChanged();
 }
 
