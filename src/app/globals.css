@@ -21,3 +21,96 @@ body {
   background-color: var(--color-color_1);
   color: var(--color-color_4);
 }
+
+
+/* =============================================================================
+   PURE BLACK GLASS
+   Scoped to this theme so other palettes keep their own surfaces.
+   ============================================================================= */
+html.theme-pure-black-glass {
+  color-scheme: dark;
+  background: #000;
+}
+
+html.theme-pure-black-glass body {
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(75, 85, 99, 0.16), transparent 55%),
+    #000;
+}
+
+html.theme-pure-black-glass .bg-color_2 {
+  background: linear-gradient(145deg, rgba(30, 31, 36, 0.88), rgba(12, 13, 16, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 12px 32px rgba(0, 0, 0, 0.22);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+html.theme-pure-black-glass .border-color_3 {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+html.theme-pure-black-glass input,
+html.theme-pure-black-glass textarea,
+html.theme-pure-black-glass select {
+  color-scheme: dark;
+}
+
+/* =============================================================================
+   PURE BLACK GLASS — CLEARER EDGES AND CONTROLS
+   Keep the glass feel, but make every interactive surface easier to spot.
+   ============================================================================= */
+html.theme-pure-black-glass .bg-color_2 {
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+html.theme-pure-black-glass .border-color_3 {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+html.theme-pure-black-glass button {
+  border-color: rgba(255, 255, 255, 0.24);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+html.theme-pure-black-glass button[class*="bg-color_6"] {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 3px 12px rgba(0, 0, 0, 0.28);
+}
+
+html.theme-pure-black-glass button:not([class*="bg-color_6"]):not([class*="bg-red"]):not([class*="bg-emerald"]):hover {
+  border-color: rgba(255, 255, 255, 0.42);
+  background-color: rgba(255, 255, 255, 0.075);
+}
+
+html.theme-pure-black-glass input,
+html.theme-pure-black-glass textarea,
+html.theme-pure-black-glass select {
+  border-color: rgba(255, 255, 255, 0.24);
+  background-color: rgba(8, 9, 12, 0.78);
+}
+
+html.theme-pure-black-glass input:focus,
+html.theme-pure-black-glass textarea:focus,
+html.theme-pure-black-glass select:focus {
+  border-color: rgba(165, 180, 252, 0.88);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.18);
+}
+
+html.theme-pure-black-glass button:focus-visible,
+html.theme-pure-black-glass a:focus-visible {
+  outline: 2px solid rgba(165, 180, 252, 0.95);
+  outline-offset: 3px;
+}
+

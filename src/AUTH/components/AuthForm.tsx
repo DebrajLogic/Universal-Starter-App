@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LoaderCircle } from 'lucide-react';
+import { Check, Copy, LoaderCircle } from 'lucide-react';
 import { auth } from '@/AUTH/auth/auth_switch';
 import { Header } from '@/shared/layout/Header';
 import { Footer } from '@/shared/layout/Footer';
@@ -17,6 +17,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copiedCredential, setCopiedCredential] = useState<'email' | 'password' | null>(null);
   const isRegister = mode === 'register';
 
   function clearError() {
@@ -115,6 +116,23 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
               <span>{busy ? (isRegister ? 'Creating account...' : 'Signing in...') : isRegister ? 'Create account' : 'Sign in'}</span>
             </button>
           </form>
+
+          {!isRegister && (
+            <aside className="mt-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 text-xs text-color_5">
+              <p className="font-semibold text-color_4">Admin demo login · local testing</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => { setEmail('admin@local.test'); setPassword('Admin123!'); setError(''); }}
+                className="mt-3 w-full rounded-md border border-amber-400/40 bg-color_1 px-3 py-3 text-left transition hover:border-color_6 hover:bg-color_2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-color_6"
+              >
+                <span className="block font-semibold text-color_4">Click to fill admin login</span>
+                <span className="mt-1 block">admin@local.test</span>
+                <span className="block">Admin123!</span>
+              </button>
+              <p className="mt-2 leading-5">First time? Open Register and create this account once. The local email allowlist gives it the admin role. Remove these demo credentials before launch.</p>
+            </aside>
+          )}
 
           <p className="mt-5 text-center text-sm text-color_5">
             {isRegister ? 'Already have an account?' : 'New here?'}{' '}

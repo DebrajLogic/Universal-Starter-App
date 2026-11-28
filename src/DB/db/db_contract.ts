@@ -10,6 +10,6 @@ export interface DbContract {
   getAll<T extends BaseRecord>(collection: string): Promise<T[]>;
   getById<T extends BaseRecord>(collection: string, id: string): Promise<T | null>;
   insert<T extends Partial<BaseRecord>>(collection: string, data: T): Promise<T & BaseRecord>;
-  update<T extends Partial<BaseRecord>>(collection: string, id: string, data: T): Promise<T & BaseRecord>;
+  update<T extends object>(collection: string, id: string, data: T): Promise<T & BaseRecord>;
   remove(collection: string, id: string): Promise<void>;
 }
