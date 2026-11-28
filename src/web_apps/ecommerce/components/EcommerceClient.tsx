@@ -6,9 +6,9 @@ import {
   ArrowLeft, ArrowRight, Search, ShoppingBag, UserRound, LayoutDashboard,
   Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle, ChevronDown, Star,
 } from 'lucide-react';
-import { getProducts, getOrders, getCart } from '../queries';
-import { createProduct, updateProduct, deleteProduct as removeProduct, createOrder, updateOrder as persistOrderUpdate, deleteOrder as removeOrder, saveCart } from '../actions';
-import type { Product, Order, OrderItem, CartLine } from '../types';
+import { getProducts, getOrders, getCart, getReviews } from '../queries';
+import { createProduct, updateProduct, deleteProduct as removeProduct, createOrder, updateOrder as persistOrderUpdate, deleteOrder as removeOrder, saveCart, createReview, updateReview } from '../actions';
+import type { Product, Order, OrderItem, CartLine, Review } from '../types';
 import { auth } from '@/AUTH/auth/auth_switch';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
 import { Header } from '@/shared/layout/Header';
@@ -66,6 +66,9 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewBody, setReviewBody] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
@@ -87,7 +90,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [productEntryMode, setProductEntryMode] = useState<'manual' | 'json'>('manual');
   const [productJson, setProductJson] = useState('');
   const [jsonError, setJsonError] = useState('');
-  const [adminTab, setAdminTab] = useState<'products' | 'orders'>('products');
+  const [adminTab, setAdminTab] = useState<'products' | 'orders' | 'reviews'>('products');
   const [accountTab, setAccountTab] = useState<'overview' | 'orders'>(slug[0] === 'orders' ? 'orders' : 'overview');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -98,9 +101,10 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [foundProducts, foundOrders] = await Promise.all([
+      const [foundProducts, foundOrders, foundReviews] = await Promise.all([
         getProducts(),
         getOrders(),
+        getReviews(),
       ]);
       const validProducts = foundProducts.filter((product): product is Product =>
         Boolean(product && typeof product === 'object' && typeof product.id === 'string' &&
@@ -116,6 +120,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
         setProducts(validProducts);
       }
       setOrders(foundOrders.filter((order): order is Order => Boolean(order && typeof order === 'object' && typeof order.id === 'string')));
+      setReviews(foundReviews.filter((review): review is Review => Boolean(review && typeof review === 'object' && typeof review.id === 'string' && typeof review.product_id === 'string' && Number.isInteger(review.rating) && review.rating >= 1 && review.rating <= 5)));
     } catch (error) {
       notify.error(error instanceof Error ? error.message : 'Could not load the store.');
     } finally {
@@ -371,6 +376,35 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     finally { setBusy(false); }
   }
 
+  async function submitProductReview(product: Product) {
+    if (!user) { notify.error('Sign in to write a review.'); return; }
+    const eligibleOrder = orders.find(order => order.user_id === user.id && order.status === 'delivered' && order.items.some(item => item.product_id === product.id));
+    if (!eligibleOrder) { notify.error('You can review this product after its order is delivered.'); return; }
+    const existing = reviews.find(review => review.product_id === product.id && review.user_id === user.id);
+    const body = reviewBody.trim();
+    if (body.length > 1000) { notify.error('Keep your review under 1,000 characters.'); return; }
+    setBusy(true);
+    try {
+      if (existing) {
+        await updateReview(existing.id, { rating: reviewRating, body, customer_name: user.name });
+        setReviews(current => current.map(review => review.id === existing.id ? { ...review, rating: reviewRating, body, customer_name: user.name } : review));
+      } else {
+        const saved = await createReview({ product_id: product.id, user_id: user.id, order_id: eligibleOrder.id, customer_name: user.name, rating: reviewRating, body, visible: true, verified_purchase: true });
+        setReviews(current => [...current, saved as Review]);
+      }
+      notify.success(existing ? 'Your review was updated.' : 'Thanks for sharing your review.');
+    } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not save your review.'); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleReviewVisibility(review: Review) {
+    try {
+      await updateReview(review.id, { visible: review.visible === false });
+      setReviews(current => current.map(item => item.id === review.id ? { ...item, visible: item.visible === false } : item));
+      notify.success(review.visible === false ? 'Review is now public.' : 'Review hidden from the store.');
+    } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not update review.'); }
+  }
+
   async function changeOrderStatus(order: Order, status: Order['status']) {
     try {
       await persistOrderUpdate(order.id, { status });
@@ -470,7 +504,11 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
         {page === 'product' && (() => {
           const product = products.find(p => p.id === slug[1] && p.active);
           if (!product) return <div className="py-24 text-center"><h1 className="font-serif text-3xl">Product not found</h1><Link href="/ecommerce" className="mt-5 inline-block underline">Back to the store</Link></div>;
-          return <div className="grid gap-10 py-8 md:grid-cols-2"><div className="overflow-hidden rounded-3xl"><ProductArt product={product} large/></div><div className="flex flex-col justify-center"><p className="text-xs font-bold uppercase tracking-[0.25em] text-color_5">{product.category}</p><h1 className="mt-3 font-serif text-5xl">{product.name}</h1><p className="mt-5 text-2xl">{money(salePrice(product))} {discountPercent(product) > 0 && <><del className="ml-2 text-base text-color_5">{money(product.compare_at_price || product.price)}</del><span className="ml-2 rounded-full bg-amber-100 px-2 py-1 align-middle text-xs font-semibold text-amber-900">{discountPercent(product)}% OFF</span></>}</p><p className="mt-6 max-w-lg leading-7 text-color_5">{product.description}</p><p className="mt-6 text-sm text-color_5">{product.stock > 0 ? product.stock + ' available' : 'Currently sold out'}</p>{(() => { const bagLine = cart.find(line => line.product_id === product.id); return <button disabled={product.stock < 1} onClick={() => addToCart(product)} className="mt-8 inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-color_6 px-6 py-4 text-sm font-semibold text-white hover:bg-color_6 disabled:opacity-40">{bagLine ? <><Check size={17}/> In bag · {bagLine.quantity} {bagLine.quantity === 1 ? 'item' : 'items'} — Add another</> : <><ShoppingBag size={17}/> Add to bag</>}</button>; })()}<div className="mt-8 grid max-w-sm grid-cols-2 gap-4 border-t border-color_3 pt-6 text-xs text-color_5"><p>Free shipping<br/><b className="mt-1 inline-block text-color_4">Orders over ₹3,000</b></p><p>Easy support<br/><b className="mt-1 inline-block text-color_4">We're here to help</b></p></div></div></div>;
+          const productReviews = reviews.filter(review => review.product_id === product.id && review.visible !== false);
+          const averageRating = productReviews.length ? productReviews.reduce((sum, review) => sum + review.rating, 0) / productReviews.length : 0;
+          const customerOrder = user ? orders.find(order => order.user_id === user.id && order.status === 'delivered' && order.items.some(item => item.product_id === product.id)) : undefined;
+          const ownReview = user ? reviews.find(review => review.product_id === product.id && review.user_id === user.id) : undefined;
+          return <><div className="grid gap-10 py-8 md:grid-cols-2"><div className="overflow-hidden rounded-3xl"><ProductArt product={product} large/></div><div className="flex flex-col justify-center"><p className="text-xs font-bold uppercase tracking-[0.25em] text-color_5">{product.category}</p><h1 className="mt-3 font-serif text-5xl">{product.name}</h1><div className="mt-3 flex items-center gap-2">{productReviews.length ? <><div className="flex items-center gap-0.5">{[1,2,3,4,5].map(n => <Star key={n} size={15} className={n <= Math.round(averageRating) ? 'fill-amber-400 text-amber-500' : 'text-color_5'}/>)}</div><span className="text-sm font-semibold">{averageRating.toFixed(1)}</span><a href="#product-reviews" className="text-xs text-color_5 underline">{productReviews.length} {productReviews.length === 1 ? 'review' : 'reviews'}</a></> : <span className="text-xs text-color_5">No reviews yet</span>}</div><p className="mt-5 text-2xl">{money(salePrice(product))} {discountPercent(product) > 0 && <><del className="ml-2 text-base text-color_5">{money(product.compare_at_price || product.price)}</del><span className="ml-2 rounded-full bg-amber-100 px-2 py-1 align-middle text-xs font-semibold text-amber-900">{discountPercent(product)}% OFF</span></>}</p><p className="mt-6 max-w-lg leading-7 text-color_5">{product.description}</p><p className="mt-6 text-sm text-color_5">{product.stock > 0 ? product.stock + ' available' : 'Currently sold out'}</p>{(() => { const bagLine = cart.find(line => line.product_id === product.id); return <button disabled={product.stock < 1} onClick={() => addToCart(product)} className="mt-8 inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-color_6 px-6 py-4 text-sm font-semibold text-white hover:bg-color_6 disabled:opacity-40">{bagLine ? <><Check size={17}/> In bag · {bagLine.quantity} {bagLine.quantity === 1 ? 'item' : 'items'} — Add another</> : <><ShoppingBag size={17}/> Add to bag</>}</button>; })()}<div className="mt-8 grid max-w-sm grid-cols-2 gap-4 border-t border-color_3 pt-6 text-xs text-color_5"><p>Free shipping<br/><b className="mt-1 inline-block text-color_4">Orders over ₹3,000</b></p><p>Easy support<br/><b className="mt-1 inline-block text-color_4">We're here to help</b></p></div></div></div><section id="product-reviews" className="border-t border-color_3 py-12"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-color_5">Customer feedback</p><h2 className="mt-2 font-serif text-3xl">Reviews</h2></div>{productReviews.length > 0 && <div className="text-right"><p className="text-3xl font-semibold">{averageRating.toFixed(1)} / 5</p><p className="text-xs text-color_5">From {productReviews.length} verified {productReviews.length === 1 ? 'review' : 'reviews'}</p></div>}</div><div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]"><div className="space-y-4">{productReviews.length === 0 ? <p className="rounded-xl bg-color_2 p-6 text-sm text-color_5">No reviews yet. Be the first verified customer to share your experience.</p> : productReviews.slice().sort((a,b) => (b.created_at || '').localeCompare(a.created_at || '')).map(review => <article key={review.id} className="rounded-xl bg-color_2 p-5"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{review.customer_name}</p><p className="mt-1 text-xs text-color_5">{review.created_at ? new Date(review.created_at).toLocaleDateString() : 'Verified purchase'} · Verified purchase</p></div><div className="flex items-center gap-0.5">{[1,2,3,4,5].map(n => <Star key={n} size={13} className={n <= review.rating ? 'fill-amber-400 text-amber-500' : 'text-color_5'}/>)}</div></div>{review.body && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-color_5">{review.body}</p>}</article>)}</div><aside className="h-fit rounded-2xl bg-color_2 p-5"><h3 className="font-semibold">{ownReview ? 'Edit your review' : 'Write a review'}</h3>{customerOrder || ownReview ? <><p className="mt-2 text-xs leading-5 text-color_5">Only customers with a delivered order can review this product.</p><div className="mt-4 flex gap-1" role="group" aria-label="Your rating">{[1,2,3,4,5].map(n => <button key={n} type="button" onClick={() => setReviewRating(n)} aria-label={n + ' stars'}><Star size={25} className={n <= reviewRating ? 'fill-amber-400 text-amber-500' : 'text-color_5'}/></button>)}</div><textarea value={reviewBody} onChange={e => setReviewBody(e.target.value)} maxLength={1000} rows={5} placeholder="What did you think of this product?" className="mt-4 w-full rounded-lg border border-color_3 bg-color_1 p-3 text-sm"/><p className="mt-1 text-right text-[11px] text-color_5">{reviewBody.length}/1000</p><button type="button" disabled={busy} onClick={() => void submitProductReview(product)} className="mt-3 w-full rounded-full bg-color_6 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{ownReview ? 'Update review' : 'Submit review'}</button></> : <p className="mt-2 text-sm leading-6 text-color_5">{user ? 'You can leave a review after this product is delivered.' : 'Sign in and order this product. You can review it after delivery.'}</p>}</aside></div></section></>;
         })()}
 
         {page === 'cart' && <section className="mx-auto max-w-4xl py-8"><p className="text-xs font-bold uppercase tracking-[0.25em] text-color_5">Your selection</p><h1 className="mt-2 font-serif text-5xl">Shopping bag</h1>{cartDetails.length === 0 ? <div className="py-20 text-center"><ShoppingBag className="mx-auto mb-4 text-stone-300" size={42}/><p className="text-color_5">Your bag is waiting for something good.</p><Link href="/ecommerce" className="mt-6 inline-flex rounded-full bg-color_6 px-6 py-3 text-sm text-white">Explore the store</Link></div> : <div className="mt-10 grid gap-10 md:grid-cols-[1fr_300px]"><div className="space-y-5">{cartDetails.map(line => <div key={line.product.id} className="flex gap-4 border-b border-color_3 pb-5"><div className="w-28 shrink-0 overflow-hidden rounded-xl"><ProductArt product={line.product}/></div><div className="min-w-0 flex-1"><p className="font-medium">{line.product.name}</p><p className="mt-1 text-sm text-color_5">{money(salePrice(line.product))}</p><div className="mt-4 inline-flex items-center gap-3 rounded-full border border-color_3 px-3 py-1.5"><button onClick={() => updateQuantity(line.product.id, line.quantity - 1)} aria-label="Decrease quantity"><Minus size={13}/></button><span className="text-sm tabular-nums">{line.quantity}</span><button onClick={() => updateQuantity(line.product.id, line.quantity + 1)} aria-label="Increase quantity"><Plus size={13}/></button></div></div><div className="text-right"><p className="font-medium">{money(salePrice(line.product) * line.quantity)}</p><button onClick={() => updateQuantity(line.product.id, 0)} className="mt-3 text-xs text-color_5 hover:text-red-600"><Trash2 size={15}/></button></div></div>)}</div><aside className="h-fit rounded-2xl bg-color_2 p-6"><h2 className="font-semibold">Order summary</h2><div className="mt-5 space-y-3 text-sm"><div className="flex justify-between"><span className="text-color_5">Subtotal</span><span>{money(subtotal)}</span></div><div className="flex justify-between"><span className="text-color_5">Shipping</span><span>{shipping ? money(shipping) : 'Free'}</span></div><div className="flex justify-between border-t border-color_3 pt-4 text-base font-semibold"><span>Total</span><span>{money(subtotal + shipping)}</span></div></div><Link href="/ecommerce/checkout" className="mt-6 flex items-center justify-center rounded-full bg-color_6 px-5 py-3.5 text-sm font-semibold text-white">Continue to checkout <ArrowRight size={15} className="ml-2"/></Link><p className="mt-4 text-center text-[11px] text-color_5">Shipping is free on orders over ₹3,000.</p></aside></div>}</section>}
