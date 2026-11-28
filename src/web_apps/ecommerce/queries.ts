@@ -14,5 +14,13 @@ export async function getProductById(id: string): Promise<Product | null> {
 
 export async function getCart(userId: string): Promise<CartLine[]> {
   const carts = await db.getAll<CartRecord>('ecom_carts');
-  return carts.find(cart => cart.user_id === userId)?.items ?? [];
+  const matching = carts.filter(cart => cart.user_id === userId);
+  const quantities = new Map<string, number>();
+  for (const cart of matching) {
+    for (const item of cart.items ?? []) {
+      if (!item || typeof item.product_id !== 'string' || !Number.isInteger(item.quantity) || item.quantity < 1) continue;
+      quantities.set(item.product_id, Math.max(quantities.get(item.product_id) ?? 0, item.quantity));
+    }
+  }
+  return Array.from(quantities, ([product_id, quantity]) => ({ product_id, quantity }));
 }
