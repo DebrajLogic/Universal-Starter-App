@@ -31,3 +31,13 @@ export async function saveCart(userId: string, items: CartLine[]): Promise<void>
 export async function deleteOrder(id: string): Promise<void> {
   return db.remove('ecom_orders', id);
 }
+
+export async function createReview(data: Omit<Partial<import('./types').Review>, 'id'>) {
+  return db.insert('ecom_reviews', data);
+}
+export async function updateReview(id: string, data: Partial<import('./types').Review>) {
+  return db.update('ecom_reviews', id, data);
+}
+export async function deleteReview(id: string): Promise<void> {
+  return db.remove('ecom_reviews', id);
+}
