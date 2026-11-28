@@ -140,10 +140,10 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   }, [cart, cartLoaded, user, cartSaveQueue]);
 
   useEffect(() => {
-    if (!user || !['orders', 'dashboard'].includes(page) && page !== 'admin') return;
-    // Fetch once when entering an account/order/admin view. No background polling.
+    if (!user || (page !== 'orders' && !(page === 'dashboard' && accountTab === 'orders'))) return;
+    // Fetch only when the customer opens order history. No background polling.
     void getOrders().then(setOrders).catch(() => undefined);
-  }, [user, page]);
+  }, [user, page, accountTab]);
 
   useEffect(() => {
     if (user) {
