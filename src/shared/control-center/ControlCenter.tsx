@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
@@ -99,22 +100,6 @@ export function ControlCenter() {
     void refreshStatus();
   }, []);
 
-  async function handleSignIn() {
-    setBusy(true);
-    setMessage('');
-    try {
-      setUser(await auth.signIn());
-      setMessage('Demo session started on this browser.');
-      showNotice('Demo session started on this browser.', 'success');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Sign-in failed.';
-      setMessage(errorMessage);
-      showNotice(errorMessage, 'error');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function handleSignOut() {
     setBusy(true);
     setMessage('');
@@ -146,7 +131,7 @@ export function ControlCenter() {
         removed += 1;
       }
     }
-    const resetMessage = `Reset complete. Removed ${removed} database collection(s). Your theme and demo login were left untouched.`;
+    const resetMessage = `Reset complete. Removed ${removed} database collection(s). Your theme and local account were left untouched.`;
     setMessage(resetMessage);
     showNotice(resetMessage, 'success');
   }
@@ -253,14 +238,11 @@ export function ControlCenter() {
                 </div>
 
                 <p className="mb-3 text-xs text-color_5">
-                  Turn on one authentication provider. The current demo provider stays active if another provider is not ready.
+                  Local Auth stays active for this local test build.
                 </p>
                 <div className="space-y-4 border-t border-color_3 pt-4">
-                  <ProviderSwitch name="Demo Auth" detail="Browser-based test session" status="active" label="Ready · Active" active={true} onToggle={() => {
-                    showNotice('Demo Auth is your only working authentication provider. Set up another auth provider before switching it off.');
-                  }} />
-                  <ProviderSwitch name="Local Session" detail="Server-managed sessions" status="setup" label="Adapter and session storage not configured" active={false} onToggle={() => {
-                    showNotice('Local Session is not ready. Implement its server-side session adapter and configure its storage first.');
+                  <ProviderSwitch name="Local Auth" detail="Browser-based accounts for local testing" status="active" label="Ready · Active" active={true} onToggle={() => {
+                    showNotice('Local Auth is your only working authentication provider. Keep it active while testing this mini-app.');
                   }} />
                   <ProviderSwitch name="OAuth" detail="Google / GitHub sign-in" status="setup" label="OAuth adapter and credentials not configured" active={false} onToggle={() => {
                     showNotice('OAuth is not ready. Implement the OAuth adapter and configure your provider credentials first.');
@@ -269,8 +251,8 @@ export function ControlCenter() {
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-color_3 pt-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium">{user ? user.name : 'No demo user signed in'}</p>
-                    <p className="text-xs text-color_5">{user ? user.email : 'Sign in to test a local session'}</p>
+                    <p className="text-sm font-medium">{user ? user.name : 'No account signed in'}</p>
+                    <p className="text-xs text-color_5">{user ? user.email : 'Create an account or sign in'}</p>
                   </div>
                   {user ? (
                     <button
@@ -282,14 +264,13 @@ export function ControlCenter() {
                       <LogOut size={15} /> Sign out
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void handleSignIn()}
-                      className="inline-flex items-center gap-2 rounded-lg bg-color_6 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    <Link
+                      href="/login"
+                      onClick={() => setIsOpen(false)}
+                      className="inline-flex items-center gap-2 rounded-lg bg-color_6 px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
                     >
-                      <LogIn size={15} /> Sign in as demo user
-                    </button>
+                      <LogIn size={15} /> Sign in
+                    </Link>
                   )}
                 </div>
               </div>
@@ -297,7 +278,7 @@ export function ControlCenter() {
 
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-color_2 p-3 text-xs text-color_5">
               <CircleHelp size={16} className="mt-0.5 shrink-0" />
-              <p>Switches show provider status. An unavailable provider cannot become active; the current working provider stays on until a replacement is configured and passes its checks. LocalStorage and Demo Auth are for local testing only.</p>
+              <p>Switches show provider status. An unavailable provider cannot become active; the current working provider stays on until a replacement is configured and passes its checks. LocalStorage and Local Auth are for local testing only.</p>
             </div>
             {message && !notice && <p role="status" className="mt-3 rounded-lg border border-color_3 p-3 text-sm text-color_5">{message}</p>}
           </section>
