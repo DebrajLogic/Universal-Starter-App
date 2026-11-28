@@ -101,6 +101,9 @@ export function ControlCenter() {
 
   useEffect(() => {
     void refreshStatus();
+    const handleAuthChange = () => { void refreshStatus(); };
+    window.addEventListener('usa-auth-change', handleAuthChange);
+    return () => window.removeEventListener('usa-auth-change', handleAuthChange);
   }, []);
 
   async function handleSignOut() {
