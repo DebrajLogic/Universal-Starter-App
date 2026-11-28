@@ -42,21 +42,23 @@ function ProviderRow({ provider, status, active, error, onToggle }: {
   onToggle: () => void;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="min-w-0 space-y-1">
-        <p className="text-sm font-medium">{provider.name}</p>
-        <p className="text-xs text-color_5">{provider.detail}</p>
-        <StatusBadge {...status} />
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-2">
-        {active ? <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><i className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />Active</span> :
-          <button type="button" onClick={onToggle} disabled={status.state === 'connecting'}
-            className="rounded-full border border-color_3 px-3 py-1.5 text-xs font-semibold transition hover:border-color_6 hover:bg-color_1 disabled:opacity-50">
-            {status.state === 'connecting' ? 'Checking…' : 'Test connection'}
-          </button>}
+    <>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-medium">{provider.name}</p>
+          <p className="text-xs text-color_5">{provider.detail}</p>
+          <StatusBadge {...status} />
+        </div>
+        <div className="flex shrink-0 items-center">
+          {active ? <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><i className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />Active</span> :
+            <button type="button" onClick={onToggle} disabled={status.state === 'connecting'}
+              className="rounded-full border border-color_3 px-3 py-1.5 text-xs font-semibold transition hover:border-color_6 hover:bg-color_1 disabled:opacity-50">
+              {status.state === 'connecting' ? 'Checking…' : 'Test connection'}
+            </button>}
+        </div>
       </div>
       {error && <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-700 dark:text-red-300"><b className="mr-1">Connection failed:</b>{error}</div>}
-    </div>
+    </>
   );
 }
 
@@ -139,9 +141,10 @@ export function ControlCenter() {
       const detail = error instanceof Error ? error.message : 'Unknown provider error';
       setStatuses(previous => ({ ...previous, [key]: { state: 'error', detail: 'Connection failed' } }));
       setProviderErrors(previous => ({ ...previous, [key]: detail }));
+      const visibleFor = Math.min(2400, Math.max(1200, 850 + detail.length * 14));
       window.setTimeout(() => {
         setProviderErrors(previous => previous[key] === detail ? { ...previous, [key]: '' } : previous);
-      }, 8000);
+      }, visibleFor);
     }
   }
 
