@@ -21,3 +21,39 @@ body {
   background-color: var(--color-color_1);
   color: var(--color-color_4);
 }
+
+
+/* =============================================================================
+   PURE BLACK GLASS
+   Scoped to this theme so other palettes keep their own surfaces.
+   ============================================================================= */
+html.theme-pure-black-glass {
+  color-scheme: dark;
+  background: #000;
+}
+
+html.theme-pure-black-glass body {
+  background:
+    radial-gradient(ellipse at 50% -20%, rgba(75, 85, 99, 0.16), transparent 55%),
+    #000;
+}
+
+html.theme-pure-black-glass .bg-color_2 {
+  background: linear-gradient(145deg, rgba(30, 31, 36, 0.88), rgba(12, 13, 16, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 12px 32px rgba(0, 0, 0, 0.22);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+html.theme-pure-black-glass .border-color_3 {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+html.theme-pure-black-glass input,
+html.theme-pure-black-glass textarea,
+html.theme-pure-black-glass select {
+  color-scheme: dark;
+}
