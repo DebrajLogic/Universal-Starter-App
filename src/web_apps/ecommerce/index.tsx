@@ -90,7 +90,7 @@ function StatusPill({ status }: { status: Order['status'] }) {
   return <span className={'rounded-full px-3 py-1 text-xs font-semibold capitalize ' + styles[status]}>{status}</span>;
 }
 
-export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
+function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -164,7 +164,7 @@ export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
     }
     if (sort === 'price-low') result.sort((a, b) => a.price - b.price);
     if (sort === 'price-high') result.sort((a, b) => b.price - a.price);
-    if (sort === 'newest') result.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    if (sort === 'newest') result.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
     if (sort === 'featured') result.sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)));
     return result;
   }, [products, category, query, sort]);
@@ -212,13 +212,13 @@ export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
       }
       for (const item of orderItems) {
         const latest = freshProducts.find(p => p.id === item.product_id)!;
-        await db.update<Product>('ecom_products', latest.id, { stock: latest.stock - item.quantity });
+        await db.update('ecom_products', latest.id, { stock: latest.stock - item.quantity });
       }
-      const order = await db.insert<Order>('ecom_orders', {
+      const order = await db.insert('ecom_orders', {
         user_id: user!.id, customer_name: checkoutName.trim(), customer_email: user!.email,
         items: orderItems, subtotal, shipping, total: subtotal + shipping,
         status: 'placed', address: [checkoutAddress, checkoutCity, checkoutPostal].join(', '),
-      } as Omit<Order, keyof BaseRecord> & Partial<BaseRecord>);
+      });
       setCart([]);
       await loadData();
       window.location.href = '/ecommerce/orders?placed=' + order.id;
@@ -251,7 +251,7 @@ export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
 
   async function toggleProduct(product: Product) {
     try {
-      await db.update<Product>('ecom_products', product.id, { active: !product.active });
+      await db.update('ecom_products', product.id, { active: !product.active });
       await loadData();
       notify.success(product.active ? 'Product hidden from the store.' : 'Product is live in the store.');
     } catch (error) { notify.error(error instanceof Error ? error.message : 'Update failed.'); }
@@ -259,7 +259,7 @@ export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
 
   async function updateOrder(order: Order, status: Order['status']) {
     try {
-      await db.update<Order>('ecom_orders', order.id, { status });
+      await db.update('ecom_orders', order.id, { status });
       await loadData();
       notify.success('Order status updated.');
     } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not update order.'); }
@@ -356,4 +356,11 @@ export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
       <Footer appName="ShopCraft" />
     </div>
   );
+}
+
+
+import { AuthGate } from '@/AUTH/components/AuthGate';
+
+export default function EcommerceApp({ slug = [] }: { slug?: string[] }) {
+  return <AuthGate><EcommerceContent slug={slug} /></AuthGate>;
 }
