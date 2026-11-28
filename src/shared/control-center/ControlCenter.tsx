@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
@@ -69,6 +70,8 @@ function ProviderSwitch({ name, detail, status, label, active, onToggle }: {
 }
 
 export function ControlCenter() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -108,6 +111,8 @@ export function ControlCenter() {
       setUser(null);
       setMessage('You are signed out.');
       showNotice('You are signed out.', 'success');
+      setIsOpen(false);
+      router.replace('/login?next=' + encodeURIComponent(pathname || '/ecommerce'));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Sign-out failed.';
       setMessage(errorMessage);
