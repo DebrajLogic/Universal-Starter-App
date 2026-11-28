@@ -361,7 +361,7 @@ export const db_localstorage: DbContract = {
   // Throws when the record does not exist.
   // ------------------------------------------------
 
-  async update<T extends Partial<BaseRecord>>(
+  async update<T extends object>(
     collection: string,
     id: string,
     data: T
