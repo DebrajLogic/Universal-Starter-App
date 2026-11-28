@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp,
+  Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
 import { auth } from '@/AUTH/auth/auth_switch';
-import { notify } from '@/shared/plugins/toast/ToastPlugin';
 
 type ProviderStatus = 'active' | 'setup' | 'error' | 'inactive';
 
@@ -29,6 +28,16 @@ function ProviderSwitch({ name, detail, status, label, active, onToggle }: {
   active: boolean;
   onToggle: () => void;
 }) {
+  const [animating, setAnimating] = useState(false);
+
+  function handleClick() {
+    setAnimating(true);
+    window.setTimeout(() => setAnimating(false), 220);
+    onToggle();
+  }
+
+  const knobIsOn = animating ? !active : active;
+
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
@@ -43,10 +52,16 @@ function ProviderSwitch({ name, detail, status, label, active, onToggle }: {
         role="switch"
         aria-checked={active}
         aria-label={`Activate ${name}`}
-        onClick={onToggle}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-color_6 focus:ring-offset-2 ${active ? 'bg-emerald-600' : 'bg-zinc-400'}`}
+        onClick={handleClick}
+        className={'relative h-7 w-12 shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-color_6 focus:ring-offset-2 transition-colors duration-200 ' + (active ? 'bg-emerald-600' : 'bg-zinc-400')}
       >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        <span
+          className="absolute left-0.5 top-1 h-5 w-5 rounded-full bg-white shadow-md"
+          style={{
+            transform: 'translateX(' + (knobIsOn ? '20px' : '0px') + ')',
+            transition: 'transform 180ms ease-in-out',
+          }}
+        />
       </button>
     </div>
   );
@@ -57,6 +72,11 @@ export function ControlCenter() {
   const [storageReady, setStorageReady] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [message, setMessage] = useState('');
+  const [notice, setNotice] = useState<{ type: 'warning' | 'error' | 'success'; message: string } | null>(null);
+
+  function showNotice(message: string, type: 'warning' | 'error' | 'success' = 'warning') {
+    setNotice({ type, message });
+  }
   const [busy, setBusy] = useState(false);
 
   async function refreshStatus() {
@@ -85,8 +105,11 @@ export function ControlCenter() {
     try {
       setUser(await auth.signIn());
       setMessage('Demo session started on this browser.');
+      showNotice('Demo session started on this browser.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Sign-in failed.');
+      const errorMessage = error instanceof Error ? error.message : 'Sign-in failed.';
+      setMessage(errorMessage);
+      showNotice(errorMessage, 'error');
     } finally {
       setBusy(false);
     }
@@ -99,8 +122,11 @@ export function ControlCenter() {
       await auth.signOut();
       setUser(null);
       setMessage('You are signed out.');
+      showNotice('You are signed out.', 'success');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Sign-out failed.');
+      const errorMessage = error instanceof Error ? error.message : 'Sign-out failed.';
+      setMessage(errorMessage);
+      showNotice(errorMessage, 'error');
     } finally {
       setBusy(false);
     }
@@ -120,7 +146,9 @@ export function ControlCenter() {
         removed += 1;
       }
     }
-    setMessage(`Reset complete. Removed ${removed} database collection(s). Your theme and demo login were left untouched.`);
+    const resetMessage = `Reset complete. Removed ${removed} database collection(s). Your theme and demo login were left untouched.`;
+    setMessage(resetMessage);
+    showNotice(resetMessage, 'success');
   }
 
   return (
@@ -153,7 +181,7 @@ export function ControlCenter() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-color_6">System settings</p>
                 <h2 id="control-center-title" className="mt-1 text-2xl font-bold">Control Center</h2>
-                <p className="mt-1 text-sm text-color_5">Choose a ready provider and manage your local demo setup.</p>
+                <p className="mt-1 text-sm text-color_5">Manage providers and check your local demo setup.</p>
               </div>
               <button
                 type="button"
@@ -164,6 +192,20 @@ export function ControlCenter() {
                 <X size={20} />
               </button>
             </div>
+
+            {notice && (
+              <div
+                role="status"
+                aria-live="polite"
+                className={'mt-4 flex items-start gap-3 rounded-xl border p-3 text-sm shadow-sm ' + (notice.type === 'warning' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300' : notice.type === 'error' ? 'border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300')}
+              >
+                {notice.type === 'success' ? <CheckCircle2 size={18} className="mt-0.5 shrink-0" /> : <AlertTriangle size={18} className="mt-0.5 shrink-0" />}
+                <p className="min-w-0 flex-1">{notice.message}</p>
+                <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss notification" className="shrink-0 rounded p-0.5 opacity-70 transition hover:opacity-100">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
 
             <div className="mt-6 space-y-4">
               <div className="rounded-xl border border-color_3 bg-color_2 p-4">
@@ -178,19 +220,19 @@ export function ControlCenter() {
                 </p>
                 <div className="space-y-4 border-t border-color_3 pt-4">
                   <ProviderSwitch name="LocalStorage" detail="Browser-based demo database" status={storageReady ? 'active' : 'error'} label={storageReady ? 'Ready · Active' : 'Browser storage unavailable'} active={true} onToggle={() => {
-                    notify.warning('LocalStorage is your only working database. Set up another database before switching it off.');
+                    showNotice('LocalStorage is your only working database. Set up another database before switching it off.');
                   }} />
                   <ProviderSwitch name="Supabase" detail="PostgreSQL cloud database" status="setup" label="Adapter and credentials not configured" active={false} onToggle={() => {
-                    notify.warning('Supabase is not ready. Add its adapter, URL, and API key before activating it.');
+                    showNotice('Supabase is not ready. Add its adapter, URL, and API key before activating it.');
                   }} />
                   <ProviderSwitch name="Firebase" detail="Cloud Firestore" status="setup" label="Adapter and credentials not configured" active={false} onToggle={() => {
-                    notify.warning('Firebase is not ready. Add its adapter and Firebase configuration before activating it.');
+                    showNotice('Firebase is not ready. Add its adapter and Firebase configuration before activating it.');
                   }} />
                   <ProviderSwitch name="MongoDB" detail="MongoDB database" status="setup" label="Server adapter not configured" active={false} onToggle={() => {
-                    notify.warning('MongoDB is not ready. Add and configure its server adapter before activating it.');
+                    showNotice('MongoDB is not ready. Add and configure its server adapter before activating it.');
                   }} />
                   <ProviderSwitch name="Appwrite" detail="Appwrite database" status="setup" label="Adapter and credentials not configured" active={false} onToggle={() => {
-                    notify.warning('Appwrite is not ready. Add its adapter and project credentials before activating it.');
+                    showNotice('Appwrite is not ready. Add its adapter and project credentials before activating it.');
                   }} />
                 </div>
 
@@ -215,13 +257,13 @@ export function ControlCenter() {
                 </p>
                 <div className="space-y-4 border-t border-color_3 pt-4">
                   <ProviderSwitch name="Demo Auth" detail="Browser-based test session" status="active" label="Ready · Active" active={true} onToggle={() => {
-                    notify.warning('Demo Auth is your only working authentication provider. Set up another auth provider before switching it off.');
+                    showNotice('Demo Auth is your only working authentication provider. Set up another auth provider before switching it off.');
                   }} />
                   <ProviderSwitch name="Local Session" detail="Server-managed sessions" status="setup" label="Adapter and session storage not configured" active={false} onToggle={() => {
-                    notify.warning('Local Session is not ready. Implement its server-side session adapter and configure its storage first.');
+                    showNotice('Local Session is not ready. Implement its server-side session adapter and configure its storage first.');
                   }} />
                   <ProviderSwitch name="OAuth" detail="Google / GitHub sign-in" status="setup" label="OAuth adapter and credentials not configured" active={false} onToggle={() => {
-                    notify.warning('OAuth is not ready. Implement the OAuth adapter and configure your provider credentials first.');
+                    showNotice('OAuth is not ready. Implement the OAuth adapter and configure your provider credentials first.');
                   }} />
                 </div>
 
@@ -257,7 +299,7 @@ export function ControlCenter() {
               <CircleHelp size={16} className="mt-0.5 shrink-0" />
               <p>Switches show provider status. An unavailable provider cannot become active; the current working provider stays on until a replacement is configured and passes its checks. LocalStorage and Demo Auth are for local testing only.</p>
             </div>
-            {message && <p role="status" className="mt-3 rounded-lg border border-color_3 p-3 text-sm text-color_5">{message}</p>}
+            {message && !notice && <p role="status" className="mt-3 rounded-lg border border-color_3 p-3 text-sm text-color_5">{message}</p>}
           </section>
         </div>
       )}
