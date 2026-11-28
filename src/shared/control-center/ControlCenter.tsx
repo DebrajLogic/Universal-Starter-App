@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp, AlertTriangle, CheckCircle2,
+  Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp, AlertTriangle, CheckCircle2, LoaderCircle,
 } from 'lucide-react';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
 import { auth } from '@/AUTH/auth/auth_switch';
@@ -269,7 +269,7 @@ export function ControlCenter() {
                       onClick={() => void handleSignOut()}
                       className="inline-flex items-center gap-2 rounded-lg border border-color_3 px-3 py-2 text-sm font-medium hover:bg-color_1 disabled:opacity-50"
                     >
-                      <LogOut size={15} /> Sign out
+                      {busy ? <LoaderCircle size={15} className="animate-spin" /> : <LogOut size={15} />} {busy ? 'Signing out...' : 'Sign out'}
                     </button>
                   ) : (
                     <Link
