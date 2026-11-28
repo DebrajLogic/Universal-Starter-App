@@ -42,8 +42,8 @@ export function Header({
               {item.label}
             </Link>
           ))}
-          {rightSlot}
           <ThemeToggleButton />
+          {rightSlot}
         </nav>
       </div>
     </header>
