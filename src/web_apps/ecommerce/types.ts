@@ -6,7 +6,7 @@ export type Product = BaseRecord & {
   stock: number; active: boolean; featured?: boolean;
 };
 export type CartLine = { product_id: string; quantity: number };
-export type OrderItem = { product_id: string; name: string; price: number; quantity: number };
+export type OrderItem = { product_id: string; name: string; price: number; quantity: number; image?: string; category?: string };
 export type Order = BaseRecord & {
   user_id: string; customer_name: string; customer_email: string; items: OrderItem[];
   subtotal: number; shipping: number; total: number;
