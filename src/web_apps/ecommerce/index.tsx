@@ -16,7 +16,7 @@ interface Product extends BaseRecord {
 // =============================================================================
 // E-COMMERCE MINI-APP (Uses color_1..8 tokens & isolated ecom_* data)
 // =============================================================================
-export default function EcommerceApp({ slug }: { slug?: string[] }) {
+function EcommerceContent({ slug }: { slug?: string[] }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -137,5 +137,16 @@ export default function EcommerceApp({ slug }: { slug?: string[] }) {
 
       <Footer appName="ShopCraft Store" />
     </div>
+  );
+}
+
+
+import { AuthGate } from '@/AUTH/components/AuthGate';
+
+export default function EcommerceApp({ slug }: { slug?: string[] }) {
+  return (
+    <AuthGate>
+      <EcommerceContent slug={slug} />
+    </AuthGate>
   );
 }
