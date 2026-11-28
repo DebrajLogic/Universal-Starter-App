@@ -6,8 +6,8 @@ import {
   ArrowLeft, ArrowRight, Search, ShoppingBag, UserRound, LayoutDashboard,
   Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle,
 } from 'lucide-react';
-import { getProducts, getOrders } from '../queries';
-import { createProduct, updateProduct, deleteProduct, createOrder, updateOrder } from '../actions';
+import { getProducts, getOrders, getCart } from '../queries';
+import { createProduct, updateProduct, deleteProduct, createOrder, updateOrder, saveCart } from '../actions';
 import type { Product, Order, OrderItem, CartLine } from '../types';
 import { auth } from '@/AUTH/auth/auth_switch';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
@@ -27,14 +27,6 @@ const PRODUCTS = [
 const money = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 const discountPercent = (product: Product) => Number.isFinite(product.discount_percent) ? Math.min(95, Math.max(0, Number(product.discount_percent))) : product.compare_at_price && product.compare_at_price > product.price ? Math.round((1 - product.price / product.compare_at_price) * 100) : 0;
 const salePrice = (product: Product) => product.price;
-const CART_KEY_PREFIX = 'ecom_cart_v1_';
-
-function readCart(userId: string): CartLine[] {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(CART_KEY_PREFIX + userId) || '[]');
-    return Array.isArray(parsed) ? parsed.filter((x: any) => typeof x.product_id === 'string' && Number.isInteger(x.quantity) && x.quantity > 0) : [];
-  } catch { return []; }
-}
 
 function ProductArt({ product, large = false, square = false }: { product?: Product | null; large?: boolean; square?: boolean }) {
   const safeProduct = product && typeof product === 'object' ? product : null;
@@ -77,6 +69,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [cartLoaded, setCartLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
@@ -128,16 +121,14 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
   useEffect(() => {
     let mounted = true;
-    auth.getCurrentUser().then(current => { if (mounted) { setUser(current); if (current) setCart(readCart(current.id)); setAuthChecked(true); } }).catch(() => { if (mounted) { setUser(null); setAuthChecked(true); } });
+    auth.getCurrentUser().then(async current => { if (mounted) { setUser(current); try { setCart(await getCart(current?.id ?? 'guest')); } catch { setCart([]); } setCartLoaded(true); setAuthChecked(true); } }).catch(() => { if (mounted) { setUser(null); setCart([]); setCartLoaded(true); setAuthChecked(true); } });
     void loadData();
-    const syncCart = () => { if (user) setCart(readCart(user.id)); };
-    window.addEventListener('storage', syncCart);
-    return () => { mounted = false; window.removeEventListener('storage', syncCart); };
+    return () => { mounted = false; };
   }, [loadData]);
 
   useEffect(() => {
-    if (user) window.localStorage.setItem(CART_KEY_PREFIX + user.id, JSON.stringify(cart));
-  }, [cart]);
+    if (cartLoaded) void saveCart(user?.id ?? 'guest', cart).catch(error => notify.error(error instanceof Error ? error.message : 'Could not save your bag.'));
+  }, [cart, cartLoaded, user]);
 
   useEffect(() => {
     if (user) {
