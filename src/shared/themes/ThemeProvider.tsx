@@ -37,6 +37,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.style.setProperty(key.replace('--color_', '--color-color_'), value);
     });
     root.classList.toggle('dark', mode === 'dark');
+    root.classList.toggle('theme-pure-black-glass', theme.name === 'Pure Black Glass');
+    root.style.colorScheme = mode;
     window.localStorage.setItem('usa_color_mode', mode);
     window.localStorage.setItem('usa_theme_name', theme.name);
   }, [mode, theme]);
