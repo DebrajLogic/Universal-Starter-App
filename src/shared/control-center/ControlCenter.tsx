@@ -138,7 +138,10 @@ export function ControlCenter() {
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unknown provider error';
       setStatuses(previous => ({ ...previous, [key]: { state: 'error', detail: 'Connection failed' } }));
-      // Provider errors are shown beside the matching provider row.
+      setProviderErrors(previous => ({ ...previous, [key]: detail }));
+      window.setTimeout(() => {
+        setProviderErrors(previous => previous[key] === detail ? { ...previous, [key]: '' } : previous);
+      }, 8000);
     }
   }
 
