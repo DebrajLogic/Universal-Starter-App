@@ -164,6 +164,17 @@ export const authLocalSession: AuthContract = {
     writeUsers(users);
   },
 
+  async deleteAccount(): Promise<void> {
+    const storage = requireBrowser();
+    const session = JSON.parse(storage.getItem(SESSION_KEY) || 'null') as StoredSession | null;
+    if (!session?.user_id) throw new Error('Sign in again before deleting your account.');
+    const users = readUsers();
+    const remaining = users.filter(user => user.id !== session.user_id);
+    if (remaining.length === users.length) throw new Error('Your local account could not be found.');
+    writeUsers(remaining);
+    storage.removeItem(SESSION_KEY);
+  },
+
   async signOut(): Promise<void> {
     requireBrowser().removeItem(SESSION_KEY);
   },
