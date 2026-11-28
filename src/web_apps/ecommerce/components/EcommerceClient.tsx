@@ -96,6 +96,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const page = slug[0] || 'home';
+  const productSlug = slug[1] || '';
   const isAdmin = user?.role === 'admin';
 
   const loadData = useCallback(async () => {
@@ -152,11 +153,11 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   }, [user, page, accountTab]);
 
   useEffect(() => {
-    const productId = page === 'product' ? slug[1] : '';
+    const productId = page === 'product' ? productSlug : '';
     const own = user && productId ? reviews.find(review => review.product_id === productId && review.user_id === user.id) : undefined;
     setReviewRating(own?.rating ?? 5);
     setReviewBody(own?.body ?? '');
-  }, [user, page, slug, reviews]);
+  }, [user?.id, page, productSlug, reviews]);
 
   useEffect(() => {
     if (user) {
