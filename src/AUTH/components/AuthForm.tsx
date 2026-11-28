@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '@/AUTH/auth/auth_switch';
@@ -29,6 +30,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
     try {
       if (isRegister) await auth.signUp(name, email, password);
       else await auth.signIn(email, password);
+      window.dispatchEvent(new Event('usa-auth-change'));
       router.replace(safeDestination());
       router.refresh();
     } catch (err) {
