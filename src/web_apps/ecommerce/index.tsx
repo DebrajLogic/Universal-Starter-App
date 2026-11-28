@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight, Search, ShoppingBag, ShoppingCart, UserRound, LayoutDashboard,
-  Package, Plus, Minus, Trash2, Pencil, X, Check, Clock3, Truck, ShieldCheck,
-  LogOut, Menu, Heart, SlidersHorizontal, CircleAlert, LoaderCircle,
+  ArrowRight, Search, ShoppingBag, UserRound, LayoutDashboard,
+  Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle,
 } from 'lucide-react';
 import { db } from '@/DB/db/db_switch';
 import type { BaseRecord } from '@/DB/db/db_contract';
@@ -194,7 +193,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     setCart(current => current.map(line => line.product_id === productId ? { ...line, quantity } : line));
   }
 
-  async function placeOrder(event: React.FormEvent<HTMLFormElement>) {
+  async function placeOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError('');
     if (!checkoutName.trim() || !checkoutPhone.trim() || !checkoutAddress.trim() || !checkoutCity.trim() || !checkoutPostal.trim()) {
