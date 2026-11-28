@@ -113,12 +113,27 @@ export function ControlCenter() {
   async function checkProvider(kind: 'db' | 'auth', provider: ProviderDefinition) {
     const key = `${kind}:${provider.id}`;
     setStatuses(previous => ({ ...previous, [key]: { state: 'connecting', detail: 'Running adapter check' } }));
-    if (provider.readiness !== 'ready') {
-      await Promise.resolve();
-      setStatuses(previous => ({ ...previous, [key]: { state: 'offline', detail: 'Adapter or credentials are not configured' } }));
+    if (provider.readiness === 'setup') {
+      setStatuses(previous => ({ ...previous, [key]: { state: 'offline', detail: 'Adapter is not configured' } }));
       return;
     }
-    await refreshStatus();
+    try {
+      if (kind === 'db' && provider.id !== 'localstorage') {
+        const response = await fetch('/api/control-center/database-health?provider=' + encodeURIComponent(provider.id), { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'Connection check failed.');
+        setStatuses(previous => ({ ...previous, [key]: { state: 'connected', detail: 'Server connection check passed' } }));
+        setErrorMessage('');
+        return;
+      }
+      await refreshStatus();
+      const current = statuses[key];
+      if (current?.state === 'error') setErrorMessage(current.detail);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Unknown provider error';
+      setStatuses(previous => ({ ...previous, [key]: { state: 'error', detail: 'Connection failed' } }));
+      setErrorMessage(detail);
+    }
   }
 
   async function handleSignOut() {
