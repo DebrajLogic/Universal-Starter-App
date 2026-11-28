@@ -2,7 +2,7 @@ import type { BaseRecord } from '@/DB/db/db_contract';
 
 export type Product = BaseRecord & {
   name: string; description: string; category: string; price: number;
-  compare_at_price?: number; discount_percent?: number; image?: string;
+  compare_at_price?: number; discount_percent?: number; image?: string; images?: string[];
   stock: number; active: boolean; featured?: boolean;
 };
 export type CartLine = { product_id: string; quantity: number };
