@@ -62,7 +62,11 @@ function readCart(userId: string): CartLine[] {
   } catch { return []; }
 }
 
-function ProductArt({ product, large = false, square = false }: { product: Product; large?: boolean; square?: boolean }) {
+function ProductArt({ product, large = false, square = false }: { product?: Product | null; large?: boolean; square?: boolean }) {
+  const safeProduct = product && typeof product === 'object' ? product : null;
+  const productName = typeof safeProduct?.name === 'string' && safeProduct.name.trim() ? safeProduct.name : 'ShopCraft Product';
+  const productCategory = typeof safeProduct?.category === 'string' ? safeProduct.category : '';
+  const productImage = typeof safeProduct?.image === 'string' ? safeProduct.image : '';
   const palettes: Record<string, string> = {
     Footwear: 'from-orange-100 to-amber-200', Bags: 'from-stone-200 to-orange-100',
     Tech: 'from-slate-200 to-blue-100', Accessories: 'from-amber-100 to-yellow-200',
@@ -70,15 +74,15 @@ function ProductArt({ product, large = false, square = false }: { product: Produ
   };
   const symbols: Record<string, string> = { Footwear: 'SNEAKERS', Bags: 'WEEKENDER', Tech: 'AUDIO', Accessories: 'TIME', Clothing: 'ESSENTIALS', Home: 'LIGHT' };
   return (
-    <div className={'relative flex items-center justify-center overflow-hidden bg-gradient-to-br ' + (palettes[product.category] || 'from-stone-100 to-stone-200') + (large ? ' aspect-[5/4]' : square ? ' aspect-square' : ' aspect-[4/3]')}>
-      {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : (
+    <div className={'relative flex items-center justify-center overflow-hidden bg-gradient-to-br ' + (palettes[productCategory] || 'from-stone-100 to-stone-200') + (large ? ' aspect-[5/4]' : square ? ' aspect-square' : ' aspect-[4/3]')}>
+      {productImage ? <img src={productImage} alt={productName} className="h-full w-full object-cover" /> : (
         <div className="text-center text-stone-700">
-          <div className="mb-2 text-[10px] font-bold tracking-[0.35em] opacity-60">{symbols[product.category] || 'SHOPCRAFT'}</div>
-          <div className="font-serif text-4xl italic sm:text-5xl">{product.name.split(' ').slice(0, 2).join(' ')}</div>
+          <div className="mb-2 text-[10px] font-bold tracking-[0.35em] opacity-60">{symbols[productCategory] || 'SHOPCRAFT'}</div>
+          <div className="font-serif text-4xl italic sm:text-5xl">{productName.split(' ').slice(0, 2).join(' ')}</div>
           <div className="mt-3 text-[9px] tracking-[0.3em] opacity-60">SHOPCRAFT / OBJECTS FOR EVERY DAY</div>
         </div>
       )}
-      {product.featured && <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-800">Featured</span>}
+      {safeProduct?.featured && <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-stone-800">Featured</span>}
     </div>
   );
 }
@@ -126,13 +130,20 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
         db.getAll<Product>('ecom_products'),
         db.getAll<Order>('ecom_orders'),
       ]);
-      if (foundProducts.length === 0) {
+      const validProducts = foundProducts.filter((product): product is Product =>
+        Boolean(product && typeof product === 'object' && typeof product.id === 'string' &&
+          typeof product.name === 'string' && typeof product.description === 'string' &&
+          typeof product.category === 'string' && typeof product.price === 'number' &&
+          typeof product.stock === 'number')
+      );
+      if (validProducts.length === 0) {
         for (const product of PRODUCTS) await db.insert('ecom_products', { ...product, active: true });
-        setProducts(await db.getAll<Product>('ecom_products'));
+        const seededProducts = await db.getAll<Product>('ecom_products');
+        setProducts(seededProducts.filter((product): product is Product => Boolean(product && typeof product === 'object' && typeof product.id === 'string' && typeof product.name === 'string')));
       } else {
-        setProducts(foundProducts);
+        setProducts(validProducts);
       }
-      setOrders(foundOrders);
+      setOrders(foundOrders.filter((order): order is Order => Boolean(order && typeof order === 'object' && typeof order.id === 'string')));
     } catch (error) {
       notify.error(error instanceof Error ? error.message : 'Could not load the store.');
     } finally {
