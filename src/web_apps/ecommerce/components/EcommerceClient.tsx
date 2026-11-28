@@ -113,7 +113,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       );
       if (validProducts.length === 0) {
         for (const product of PRODUCTS) await createProduct({ ...product, active: true });
-        const seededProducts = await db.getAll<Product>('ecom_products');
+        const seededProducts = await getProducts();
         setProducts(seededProducts.filter((product): product is Product => Boolean(product && typeof product === 'object' && typeof product.id === 'string' && typeof product.name === 'string')));
       } else {
         setProducts(validProducts);
@@ -199,7 +199,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     if (cartDetails.length === 0) { setFormError('Your bag is empty.'); return; }
     setBusy(true);
     try {
-      const freshProducts = await db.getAll<Product>('ecom_products');
+      const freshProducts = await getProducts();
       const orderItems: OrderItem[] = [];
       for (const line of cartDetails) {
         const latest = freshProducts.find(p => p.id === line.product.id);
@@ -208,7 +208,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       }
       for (const item of orderItems) {
         const latest = freshProducts.find(p => p.id === item.product_id)!;
-        await db.update('ecom_products', latest.id, { stock: latest.stock - item.quantity });
+        await updateProduct(latest.id, { stock: latest.stock - item.quantity });
       }
       const order = await createOrder({
         user_id: user!.id, customer_name: checkoutName.trim(), customer_email: user!.email,
