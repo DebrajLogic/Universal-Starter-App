@@ -92,7 +92,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [productEntryMode, setProductEntryMode] = useState<'manual' | 'json'>('manual');
   const [productJson, setProductJson] = useState('');
   const [jsonError, setJsonError] = useState('');
-  const [adminTab, setAdminTab] = useState<'products' | 'orders' | 'reviews'>('products');
+  const [adminTab, setAdminTab] = useState<'products' | 'orders' | 'reviews' | 'analytics'>('products');
   const [accountTab, setAccountTab] = useState<'overview' | 'orders'>(slug[0] === 'orders' ? 'orders' : 'overview');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -194,6 +194,34 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const subtotal = cartDetails.reduce((sum, line) => sum + salePrice(line.product) * line.quantity, 0);
   const shipping = subtotal === 0 || subtotal >= 3000 ? 0 : 99;
   const cartCount = cart.reduce((sum, line) => sum + line.quantity, 0);
+  // Analytics are derived from delivered orders only.
+  const deliveredOrders = orders.filter(order => order.status === 'delivered');
+  const deliveredRevenue = deliveredOrders.reduce((sum, order) => sum + order.total, 0);
+  const deliveredUnits = deliveredOrders.reduce((sum, order) => sum + order.items.reduce((total, item) => total + item.quantity, 0), 0);
+  const bestSellers = useMemo(() => {
+    const sold = new Map<string, number>();
+    for (const order of orders) {
+      if (order.status !== 'delivered') continue;
+      for (const item of order.items) sold.set(item.product_id, (sold.get(item.product_id) || 0) + item.quantity);
+    }
+    return products.filter(product => product.active)
+      .map(product => ({ product, units: sold.get(product.id) || 0 }))
+      .filter(entry => entry.units > 0)
+      .sort((a, b) => b.units - a.units)
+      .slice(0, 5);
+  }, [orders, products]);
+  const categorySales = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const order of orders) {
+      if (order.status !== 'delivered') continue;
+      for (const item of order.items) {
+        const category = item.category || products.find(product => product.id === item.product_id)?.category || 'Other';
+        totals.set(category, (totals.get(category) || 0) + item.price * item.quantity);
+      }
+    }
+    return [...totals.entries()].map(([name, revenue]) => ({ name, revenue })).sort((a, b) => b.revenue - a.revenue);
+  }, [orders, products]);
+  const averageOrderValue = deliveredOrders.length ? deliveredRevenue / deliveredOrders.length : 0;
 
   function addToCart(product: Product) {
     if (product.stock < 1) return notify.error('This item is out of stock.');
