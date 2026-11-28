@@ -36,7 +36,8 @@ const themeBootScript = `(() => {
 // =============================================================================
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootScript }} /></head>
       <body className="bg-color_1 text-color_4 antialiased">
         <ThemeProvider>
           <ToastProvider />
