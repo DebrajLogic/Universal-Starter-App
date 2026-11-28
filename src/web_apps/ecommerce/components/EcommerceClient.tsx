@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, Search, ShoppingBag, UserRound, LayoutDashboard,
-  Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle,
+  Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle, ChevronDown,
 } from 'lucide-react';
 import { getProducts, getOrders, getCart } from '../queries';
 import { createProduct, updateProduct, deleteProduct as removeProduct, createOrder, updateOrder as persistOrderUpdate, deleteOrder as removeOrder, saveCart } from '../actions';
