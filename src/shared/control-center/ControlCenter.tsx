@@ -28,7 +28,7 @@ function StatusBadge({ status, detail }: StatusEntry) {
       {status === 'connecting' ? <LoaderCircle size={12} className="animate-spin" /> :
        status === 'connected' || status === 'available' ? <CheckCircle2 size={12} /> :
        status === 'offline' ? <WifiOff size={12} /> : <AlertCircle size={12} />}
-      {status === 'connecting' ? 'Connecting…' : status === 'connected' ? 'Connected' : status === 'available' ? 'Available' : status === 'offline' ? 'Offline' : 'Error'}
+      {status === 'connecting' ? 'Checking…' : status === 'connected' ? 'Ready' : status === 'available' ? 'Available' : status === 'offline' ? 'Not configured' : 'Check issue'}
       <span className="opacity-80">· {detail}</span>
     </span>
   );
@@ -42,7 +42,7 @@ function ProviderRow({ provider, status, active, error, onToggle }: {
   onToggle: () => void;
 }) {
   return (
-    <>
+    <div className={`rounded-xl border p-3 transition-colors ${active ? 'border-emerald-500/45 bg-emerald-500/[0.055] shadow-[inset_0_1px_0_rgba(16,185,129,0.08),0_0_0_1px_rgba(16,185,129,0.08)]' : 'border-color_3 bg-color_1/40'}">
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-medium">{provider.name}</p>
@@ -57,8 +57,8 @@ function ProviderRow({ provider, status, active, error, onToggle }: {
             </button>}
         </div>
       </div>
-      {error && <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-700 dark:text-red-300"><b className="mr-1">Connection failed:</b>{error}</div>}
-    </>
+      {error && <div role="alert" className="mt-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-700 dark:text-red-300"><b className="mr-1">Connection failed:</b>{error}</div>}
+    </div>
   );
 }
 
