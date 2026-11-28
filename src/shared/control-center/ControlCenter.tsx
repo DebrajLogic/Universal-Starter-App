@@ -34,26 +34,28 @@ function StatusBadge({ status, detail }: StatusEntry) {
   );
 }
 
-function ProviderRow({ provider, status, active, onToggle }: {
+function ProviderRow({ provider, status, active, error, onToggle }: {
   provider: ProviderDefinition;
   status: StatusEntry;
   active: boolean;
+  error?: string;
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="space-y-2">
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-medium">{provider.name}</p>
         <p className="text-xs text-color_5">{provider.detail}</p>
         <StatusBadge {...status} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
-        {active && <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300">Active</span>}
-        <button type="button" onClick={onToggle} disabled={status.state === 'connecting'}
-          className="rounded-full border border-color_3 px-3 py-1.5 text-xs font-semibold transition hover:border-color_6 disabled:opacity-50">
-          {status.state === 'connecting' ? 'Checking…' : 'Test'}
-        </button>
+        {active ? <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><i className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />Active</span> :
+          <button type="button" onClick={onToggle} disabled={status.state === 'connecting'}
+            className="rounded-full border border-color_3 px-3 py-1.5 text-xs font-semibold transition hover:border-color_6 hover:bg-color_1 disabled:opacity-50">
+            {status.state === 'connecting' ? 'Checking…' : 'Test connection'}
+          </button>}
       </div>
+      {error && <div role="alert" className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs leading-5 text-red-700 dark:text-red-300"><b className="mr-1">Connection failed:</b>{error}</div>}
     </div>
   );
 }
@@ -66,7 +68,7 @@ export function ControlCenter() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [providerErrors, setProviderErrors] = useState<Record<string, string>>({});
   const [showAllThemes, setShowAllThemes] = useState(false);
   const [pinnedThemes, setPinnedThemes] = useState<string[]>([theme.name, ...themes.filter(item => item.name !== theme.name).slice(0, 2).map(item => item.name)]);
   const [statuses, setStatuses] = useState<Record<string, StatusEntry>>(() => {
@@ -95,7 +97,7 @@ export function ControlCenter() {
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Storage access failed';
       setStatuses(previous => ({ ...previous, 'db:localstorage': { state: 'error', detail } }));
-      setErrorMessage(detail);
+      // Provider errors are shown beside the matching provider row.
     }
     try {
       await auth.getCurrentUser();
@@ -103,7 +105,7 @@ export function ControlCenter() {
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Auth check failed';
       setStatuses(previous => ({ ...previous, 'auth:local_session': { state: 'error', detail } }));
-      setErrorMessage(detail);
+      // Provider errors are shown beside the matching provider row.
     }
     try { setUser(await auth.getCurrentUser()); } catch { setUser(null); }
   }
@@ -117,6 +119,7 @@ export function ControlCenter() {
 
   async function checkProvider(kind: 'db' | 'auth', provider: ProviderDefinition) {
     const key = `${kind}:${provider.id}`;
+    setProviderErrors(previous => ({ ...previous, [key]: '' }));
     setStatuses(previous => ({ ...previous, [key]: { state: 'connecting', detail: 'Running adapter check' } }));
     if (provider.readiness === 'setup') {
       setStatuses(previous => ({ ...previous, [key]: { state: 'offline', detail: 'Adapter is not configured' } }));
@@ -128,16 +131,14 @@ export function ControlCenter() {
         const result = await response.json();
         if (!response.ok || !result.ok) throw new Error(result.error || 'Connection check failed.');
         setStatuses(previous => ({ ...previous, [key]: { state: 'connected', detail: 'Server connection check passed' } }));
-        setErrorMessage('');
         return;
       }
       await refreshStatus();
-      const current = statuses[key];
-      if (current?.state === 'error') setErrorMessage(current.detail);
+      // The active browser adapter status is refreshed above.
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unknown provider error';
       setStatuses(previous => ({ ...previous, [key]: { state: 'error', detail: 'Connection failed' } }));
-      setErrorMessage(detail);
+      // Provider errors are shown beside the matching provider row.
     }
   }
 
@@ -168,6 +169,7 @@ export function ControlCenter() {
     <ProviderRow key={provider.id} provider={provider}
       status={statuses[`${kind}:${provider.id}`] ?? { state: 'offline', detail: 'No status check registered' }}
       active={provider.active}
+      error={providerErrors[`${kind}:${provider.id}`]}
       onToggle={() => void checkProvider(kind, provider)} />
   ));
 
@@ -226,7 +228,6 @@ export function ControlCenter() {
               </div>
             </div>
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-color_2 p-3 text-xs text-color_5"><CircleHelp size={16} className="mt-0.5 shrink-0" /><p>Available means adapter code is present. Connected means its check passed. Offline means it is not configured or reachable. Provider activation remains controlled by the provider switchboard.</p></div>
-            {errorMessage && <div role="alert" className="mt-3 rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300"><b>Provider error</b><p className="mt-1 break-words">{errorMessage}</p></div>}
             {message && <p role="status" className="mt-3 rounded-lg border border-color_3 p-3 text-sm text-color_5">{message}</p>}
             <div className="mt-5 rounded-xl border-2 border-red-500/60 bg-red-500/5 p-4"><div className="flex items-start gap-3"><Trash2 size={18} className="mt-0.5 shrink-0 text-red-600"/><div className="min-w-0 flex-1"><h3 className="font-semibold text-red-700 dark:text-red-300">Delete all app data</h3><p className="mt-1 text-xs text-color_5">Removes this app’s LocalStorage database, local accounts, sessions, cart and saved preferences. Other websites’ data is not touched.</p><button type="button" onClick={deleteAllAppData} className="mt-3 rounded-lg border border-red-500/60 bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700">Delete all data</button></div></div></div>
           </section>
