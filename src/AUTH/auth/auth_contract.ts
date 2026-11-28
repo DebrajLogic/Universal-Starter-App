@@ -14,5 +14,6 @@ export interface AuthContract {
   signUp(name: string, email: string, password: string): Promise<AuthUser>;
   signIn(email: string, password: string): Promise<AuthUser>;
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  deleteAccount(): Promise<void>;
   signOut(): Promise<void>;
 }
