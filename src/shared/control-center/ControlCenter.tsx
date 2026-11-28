@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Settings, X, Database, ShieldCheck, Trash2, LogIn, LogOut, CircleHelp,
-  CheckCircle2, LoaderCircle, Palette, Wifi, WifiOff, AlertCircle,
+  CheckCircle2, LoaderCircle, Palette, WifiOff, AlertCircle,
 } from 'lucide-react';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
 import { auth } from '@/AUTH/auth/auth_switch';
