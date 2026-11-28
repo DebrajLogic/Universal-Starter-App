@@ -168,7 +168,7 @@ export function ControlCenter() {
     if (!window.confirm('Delete ALL Universal Starter App data from this browser? This removes app database records, local accounts, sessions, cart and saved preferences. Other websites’ data is not touched. This cannot be undone.')) return;
     const prefixes = ['app_db_', 'usa_', 'ecom_']; const keys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i += 1) { const key = window.localStorage.key(i); if (key && prefixes.some(prefix => key.startsWith(prefix))) keys.push(key); }
-    keys.forEach(key => window.localStorage.removeItem(key)); setMessage(`Deleted ${keys.length} app data item(s). Other websites’ data was left untouched.`); setErrorMessage('');
+    keys.forEach(key => window.localStorage.removeItem(key)); setMessage(`Deleted ${keys.length} app data item(s). Other websites’ data was left untouched.`);
   }
 
   const renderProviders = (kind: 'db' | 'auth', providers: ProviderDefinition[]) => providers.map(provider => (
