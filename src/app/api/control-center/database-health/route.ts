@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
 // Server-only connection probes. These never write data.
 export async function GET(request: NextRequest) {
