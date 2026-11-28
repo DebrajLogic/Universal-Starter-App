@@ -13,5 +13,6 @@ export interface AuthContract {
   getCurrentUser(): Promise<AuthUser | null>;
   signUp(name: string, email: string, password: string): Promise<AuthUser>;
   signIn(email: string, password: string): Promise<AuthUser>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   signOut(): Promise<void>;
 }
