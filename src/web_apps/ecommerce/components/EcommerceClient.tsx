@@ -88,7 +88,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [productJson, setProductJson] = useState('');
   const [jsonError, setJsonError] = useState('');
   const [adminTab, setAdminTab] = useState<'products' | 'orders'>('products');
-  const [accountTab, setAccountTab] = useState<'overview' | 'orders'>('overview');
+  const [accountTab, setAccountTab] = useState<'overview' | 'orders'>(slug[0] === 'orders' ? 'orders' : 'overview');
 
   const page = slug[0] || 'home';
   const isAdmin = user?.role === 'admin';
