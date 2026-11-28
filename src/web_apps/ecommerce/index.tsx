@@ -50,11 +50,11 @@ const PRODUCTS = [
 ];
 
 const money = (amount: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
-const CART_KEY = 'ecom_cart_v1';
+const CART_KEY_PREFIX = 'ecom_cart_v1_';
 
-function readCart(): CartLine[] {
+function readCart(userId: string): CartLine[] {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(CART_KEY) || '[]');
+    const parsed = JSON.parse(window.localStorage.getItem(CART_KEY_PREFIX + userId) || '[]');
     return Array.isArray(parsed) ? parsed.filter((x: any) => typeof x.product_id === 'string' && Number.isInteger(x.quantity) && x.quantity > 0) : [];
   } catch { return []; }
 }
@@ -136,8 +136,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
   useEffect(() => {
     let mounted = true;
-    auth.getCurrentUser().then(current => { if (mounted) setUser(current); }).catch(() => { if (mounted) setUser(null); });
-    setCart(readCart());
+    auth.getCurrentUser().then(current => { if (mounted) { setUser(current); if (current) setCart(readCart(current.id)); } }).catch(() => { if (mounted) setUser(null); });
     void loadData();
     const syncCart = () => setCart(readCart());
     window.addEventListener('storage', syncCart);
@@ -145,7 +144,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   }, [loadData]);
 
   useEffect(() => {
-    window.localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    if (user) window.localStorage.setItem(CART_KEY_PREFIX + user.id, JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
