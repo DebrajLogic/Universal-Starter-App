@@ -4,7 +4,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { LoaderCircle } from 'lucide-react';
+import { Check, Copy, LoaderCircle } from 'lucide-react';
 import { auth } from '@/AUTH/auth/auth_switch';
 import { Header } from '@/shared/layout/Header';
 import { Footer } from '@/shared/layout/Footer';
@@ -17,6 +17,7 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [copiedCredential, setCopiedCredential] = useState<'email' | 'password' | null>(null);
   const isRegister = mode === 'register';
 
   function clearError() {
@@ -119,8 +120,16 @@ export function AuthForm({ mode }: { mode: 'login' | 'register' }) {
           {!isRegister && (
             <aside className="mt-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3 text-xs text-color_5">
               <p className="font-semibold text-color_4">Temporary admin login — local testing</p>
-              <p className="mt-2">Email: <code className="font-semibold">admin@local.test</code></p>
-              <p className="mt-1">Password: <code className="font-semibold">Admin123!</code></p>
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 rounded-md bg-color_1 px-3 py-2">
+                  <span>Email: <code className="font-semibold">admin@local.test</code></span>
+                  <button type="button" onClick={async () => { try { await navigator.clipboard.writeText('admin@local.test'); setCopiedCredential('email'); window.setTimeout(() => setCopiedCredential(null), 1600); } catch { setError('Clipboard access is unavailable in this browser.'); } }} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-color_3 px-2 py-1.5 font-medium hover:bg-color_2" aria-label="Copy admin email">{copiedCredential === 'email' ? <Check size={13}/> : <Copy size={13}/>} {copiedCredential === 'email' ? 'Copied' : 'Copy'}</button>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-md bg-color_1 px-3 py-2">
+                  <span>Password: <code className="font-semibold">Admin123!</code></span>
+                  <button type="button" onClick={async () => { try { await navigator.clipboard.writeText('Admin123!'); setCopiedCredential('password'); window.setTimeout(() => setCopiedCredential(null), 1600); } catch { setError('Clipboard access is unavailable in this browser.'); } }} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-color_3 px-2 py-1.5 font-medium hover:bg-color_2" aria-label="Copy admin password">{copiedCredential === 'password' ? <Check size={13}/> : <Copy size={13}/>} {copiedCredential === 'password' ? 'Copied' : 'Copy'}</button>
+                </div>
+              </div>
               <p className="mt-2 leading-5">First, create this account from the Register page using these details. The admin role is assigned by the local email allowlist. Remove this box before launch.</p>
             </aside>
           )}
