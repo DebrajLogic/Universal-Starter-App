@@ -374,8 +374,8 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
   async function changeOrderStatus(order: Order, status: Order['status']) {
     try {
-      const updated = await persistOrderUpdate(order.id, { status });
-      setOrders(current => current.map(item => item.id === order.id ? updated : item));
+      await persistOrderUpdate(order.id, { status });
+      setOrders(current => current.map(item => item.id === order.id ? { ...item, status } : item));
       notify.success('Order status updated.');
     } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not update order.'); }
   }
