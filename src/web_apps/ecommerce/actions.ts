@@ -20,7 +20,14 @@ export async function updateOrder(id: string, data: Partial<Order>) {
 
 export async function saveCart(userId: string, items: CartLine[]): Promise<void> {
   const carts = await db.getAll<CartRecord>('ecom_carts');
-  const existing = carts.find(cart => cart.user_id === userId);
-  if (existing) await db.update('ecom_carts', existing.id, { items });
+  const matching = carts.filter(cart => cart.user_id === userId);
+  const [primary, ...duplicates] = matching;
+  if (primary) await db.update('ecom_carts', primary.id, { items });
   else await db.insert('ecom_carts', { user_id: userId, items });
+  // Clean up duplicate records left by older overlapping saves.
+  for (const duplicate of duplicates) await db.remove('ecom_carts', duplicate.id);
+}
+
+export async function deleteOrder(id: string): Promise<void> {
+  return db.remove('ecom_orders', id);
 }
