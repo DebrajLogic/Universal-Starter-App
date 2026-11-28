@@ -15,3 +15,14 @@ export type Order = BaseRecord & {
 export type Address = BaseRecord & { user_id: string; full_name: string; phone: string; line1: string; city: string; postal_code: string; is_default: boolean };
 
 export type CartRecord = BaseRecord & { user_id: string; items: CartLine[] };
+
+export type Review = BaseRecord & {
+  product_id: string;
+  user_id: string;
+  order_id: string;
+  customer_name: string;
+  rating: number;
+  body: string;
+  visible: boolean;
+  verified_purchase: true;
+};
