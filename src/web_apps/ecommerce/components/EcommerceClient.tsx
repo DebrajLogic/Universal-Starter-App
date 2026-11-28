@@ -7,7 +7,7 @@ import {
   Package, Plus, Minus, Trash2, Pencil, Check, Truck, ShieldCheck, LogOut, LoaderCircle,
 } from 'lucide-react';
 import { getProducts, getOrders, getCart } from '../queries';
-import { createProduct, updateProduct, deleteProduct, createOrder, updateOrder, deleteOrder as removeOrder, saveCart } from '../actions';
+import { createProduct, updateProduct, deleteProduct as removeProduct, createOrder, updateOrder as persistOrderUpdate, deleteOrder as removeOrder, saveCart } from '../actions';
 import type { Product, Order, OrderItem, CartLine } from '../types';
 import { auth } from '@/AUTH/auth/auth_switch';
 import type { AuthUser } from '@/AUTH/auth/auth_contract';
@@ -364,7 +364,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     if (!window.confirm('Delete “' + product.name + '”? This cannot be undone.')) return;
     setBusy(true);
     try {
-      await deleteProduct(product.id);
+      await removeProduct(product.id);
       setEditing(current => current?.id === product.id ? null : current);
       await loadData();
       notify.success('Product deleted.');
@@ -374,7 +374,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
   async function changeOrderStatus(order: Order, status: Order['status']) {
     try {
-      const updated = await updateOrder(order.id, { status });
+      const updated = await persistOrderUpdate(order.id, { status });
       setOrders(current => current.map(item => item.id === order.id ? updated : item));
       notify.success('Order status updated.');
     } catch (error) { notify.error(error instanceof Error ? error.message : 'Could not update order.'); }
