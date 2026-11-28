@@ -307,7 +307,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
       for (const line of cartDetails) {
         const latest = freshProducts.find(p => p.id === line.product.id);
         if (!latest || !latest.active || latest.stock < line.quantity) throw new Error(latest ? latest.name + ' does not have enough stock.' : 'A product in your bag is no longer available.');
-        orderItems.push({ product_id: latest.id, name: latest.name, price: salePrice(latest), quantity: line.quantity, image: latest.image, category: latest.category });
+        orderItems.push({ product_id: latest.id, name: latest.name, price: salePrice(latest), quantity: line.quantity, image: latest.images?.[0] || latest.image, category: latest.category });
       }
       for (const item of orderItems) {
         const latest = freshProducts.find(p => p.id === item.product_id)!;
@@ -673,7 +673,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
                 <div className="flex items-center justify-between gap-3"><span className="text-xs text-color_5">Order number</span><b className="font-mono text-sm">#{confirmedOrder.id.slice(0,8)}</b></div>
                 <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-color_5">Items</span><b className="text-sm">{confirmedOrder.items.reduce((sum,item) => sum + item.quantity,0)}</b></div>
                 <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-color_5">Order total</span><b className="text-lg">{money(confirmedOrder.total)}</b></div>
-                <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-color_5">Status</span><StatusPill status={confirmedOrder.status}/></div>
+                <div className="mt-3 flex items-center justify-between gap-3"><span className="text-xs text-color_5">Status</span><StatusPill status={confirmedOrder.status}/></div><OrderProgress status={confirmedOrder.status}/>
               </div>}
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
                 <Link href="/ecommerce" className="inline-flex items-center justify-center gap-2 rounded-full bg-color_6 px-6 py-3.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:opacity-90"><ShoppingBag size={16}/> Continue shopping</Link>
