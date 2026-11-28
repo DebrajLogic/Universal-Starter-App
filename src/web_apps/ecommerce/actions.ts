@@ -33,7 +33,30 @@ export async function deleteOrder(id: string): Promise<void> {
 }
 
 export async function createReview(data: Omit<Partial<import('./types').Review>, 'id'>) {
-  return db.insert('ecom_reviews', data);
+  if (!data.user_id || !data.product_id || !data.order_id || !data.customer_name) {
+    throw new Error('Review details are incomplete.');
+  }
+  if (!Number.isInteger(data.rating) || (data.rating ?? 0) < 1 || (data.rating ?? 0) > 5) {
+    throw new Error('Choose a rating from 1 to 5 stars.');
+  }
+  if (typeof data.body !== 'string' || data.body.length > 1000) {
+    throw new Error('Review text must be 1,000 characters or fewer.');
+  }
+  const [orders, reviews] = await Promise.all([
+    db.getAll<import('./types').Order>('ecom_orders'),
+    db.getAll<import('./types').Review>('ecom_reviews'),
+  ]);
+  const eligibleOrder = orders.find(order =>
+    order.id === data.order_id &&
+    order.user_id === data.user_id &&
+    order.status === 'delivered' &&
+    order.items?.some(item => item.product_id === data.product_id)
+  );
+  if (!eligibleOrder) throw new Error('A delivered order containing this product is required to review it.');
+  if (reviews.some(review => review.user_id === data.user_id && review.product_id === data.product_id)) {
+    throw new Error('You have already reviewed this product. Edit your existing review instead.');
+  }
+  return db.insert('ecom_reviews', { ...data, visible: true, verified_purchase: true });
 }
 export async function updateReview(id: string, data: Partial<import('./types').Review>) {
   return db.update('ecom_reviews', id, data);
