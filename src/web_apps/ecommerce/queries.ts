@@ -24,3 +24,7 @@ export async function getCart(userId: string): Promise<CartLine[]> {
   }
   return Array.from(quantities, ([product_id, quantity]) => ({ product_id, quantity }));
 }
+
+export async function getReviews(): Promise<import('./types').Review[]> {
+  return db.getAll<import('./types').Review>('ecom_reviews');
+}
