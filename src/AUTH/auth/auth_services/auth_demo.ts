@@ -55,6 +55,10 @@ export const authDemo: AuthContract = {
     throw new Error('Password changes are not available in the legacy demo provider.');
   },
 
+  async deleteAccount(): Promise<void> {
+    throw new Error('Account deletion is not available in the legacy demo provider.');
+  },
+
   async signOut(): Promise<void> {
     if (isBrowser()) window.localStorage.removeItem(SESSION_KEY);
   },
