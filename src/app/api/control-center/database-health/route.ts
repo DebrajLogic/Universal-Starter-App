@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const runtime = 'nodejs';
 
 // Server-only connection probes. These never write data.
 export async function GET(request: NextRequest) {
