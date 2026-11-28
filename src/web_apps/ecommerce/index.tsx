@@ -108,6 +108,9 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
   const [formError, setFormError] = useState('');
   const [editing, setEditing] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState({ name: '', description: '', category: 'Footwear', price: '1999', stock: '10', image: '' });
+  const [productEntryMode, setProductEntryMode] = useState<'manual' | 'json'>('manual');
+  const [productJson, setProductJson] = useState('');
+  const [jsonError, setJsonError] = useState('');
   const [adminTab, setAdminTab] = useState<'products' | 'orders'>('products');
 
   const page = slug[0] || 'home';
@@ -247,6 +250,105 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
     finally { setBusy(false); }
   }
 
+  async function importProductsFromJson() {
+    setJsonError('');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(productJson);
+    } catch {
+      setJsonError('That JSON is not valid. Check commas, quotes, and brackets.');
+      return;
+    }
+
+    const entries = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === 'object' && Array.isArray((parsed as { products?: unknown }).products)
+        ? (parsed as { products: unknown[] }).products
+        : null;
+
+    if (!entries || entries.length === 0) {
+      setJsonError('Paste a JSON array of products, or an object with a "products" array.');
+      return;
+    }
+
+    const allowedCategories = ['Footwear', 'Bags', 'Tech', 'Accessories', 'Clothing', 'Home'];
+    const validated: Array<{
+      name: string; description: string; category: string; price: number;
+      stock: number; image?: string; compare_at_price?: number; active: boolean; featured: boolean;
+    }> = [];
+
+    for (let index = 0; index < entries.length; index++) {
+      const item = entries[index];
+      const label = 'Product ' + (index + 1);
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        setJsonError(label + ' must be a JSON object.');
+        return;
+      }
+      const row = item as Record<string, unknown>;
+      const name = typeof row.name === 'string' ? row.name.trim() : '';
+      const description = typeof row.description === 'string' ? row.description.trim() : '';
+      const categoryValue = typeof row.category === 'string' ? row.category.trim() : '';
+      const price = row.price;
+      const stock = row.stock;
+      const compareAt = row.compare_at_price;
+      const image = row.image;
+      if (!name || !description) {
+        setJsonError(label + ': "name" and "description" are required text fields.');
+        return;
+      }
+      if (!allowedCategories.includes(categoryValue)) {
+        setJsonError(label + ': category must be one of ' + allowedCategories.join(', ') + '.');
+        return;
+      }
+      if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+        setJsonError(label + ': "price" must be a number greater than zero.');
+        return;
+      }
+      if (typeof stock !== 'number' || !Number.isInteger(stock) || stock < 0) {
+        setJsonError(label + ': "stock" must be a whole number (zero or more).');
+        return;
+      }
+      if (compareAt !== undefined && (typeof compareAt !== 'number' || !Number.isFinite(compareAt) || compareAt <= price)) {
+        setJsonError(label + ': "compare_at_price" must be a number greater than "price".');
+        return;
+      }
+      if (image !== undefined && typeof image !== 'string') {
+        setJsonError(label + ': "image" must be a URL string or omitted.');
+        return;
+      }
+      if (row.active !== undefined && typeof row.active !== 'boolean') {
+        setJsonError(label + ': "active" must be true or false.');
+        return;
+      }
+      if (row.featured !== undefined && typeof row.featured !== 'boolean') {
+        setJsonError(label + ': "featured" must be true or false.');
+        return;
+      }
+      validated.push({
+        name, description, category: categoryValue, price, stock,
+        ...(typeof image === 'string' && image.trim() ? { image: image.trim() } : {}),
+        ...(typeof compareAt === 'number' ? { compare_at_price: compareAt } : {}),
+        active: typeof row.active === 'boolean' ? row.active : true,
+        featured: typeof row.featured === 'boolean' ? row.featured : false,
+      });
+    }
+
+    setBusy(true);
+    try {
+      for (const product of validated) {
+        await db.insert('ecom_products', product);
+      }
+      setProductJson('');
+      await loadData();
+      notify.success(validated.length + ' product' + (validated.length === 1 ? '' : 's') + ' imported.');
+    } catch (error) {
+      notify.error(error instanceof Error ? error.message : 'Product import stopped. Some earlier products may already have been added.');
+      await loadData();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleProduct(product: Product) {
     try {
       await db.update('ecom_products', product.id, { active: !product.active });
@@ -348,7 +450,7 @@ function EcommerceContent({ slug = [] }: { slug?: string[] }) {
 
         {page === 'orders' && <section className="mx-auto max-w-4xl py-8"><p className="text-xs font-bold uppercase tracking-[0.25em] text-stone-400">Order history</p><h1 className="mt-2 font-serif text-5xl">Your orders</h1><div className="mt-8 rounded-2xl bg-white p-6">{orders.filter(o => o.user_id === user?.id).length === 0 ? <p className="py-12 text-center text-sm text-stone-500">No orders yet. Your next favourite is waiting.</p> : orders.filter(o => o.user_id === user?.id).slice().sort((a,b) => b.created_at.localeCompare(a.created_at)).map(order => <article key={order.id} className="border-b border-stone-100 py-5 last:border-0"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">Order #{order.id.slice(0,8)}</p><p className="mt-1 text-xs text-stone-400">{new Date(order.created_at).toLocaleString()}</p></div><div className="flex items-center gap-3"><StatusPill status={order.status}/><b>{money(order.total)}</b></div></div><div className="mt-4 space-y-1 text-sm text-stone-600">{order.items.map(item => <p key={item.product_id}>{item.name} × {item.quantity}</p>)}</div><p className="mt-3 text-xs text-stone-400">Deliver to: {order.address}</p></article>)}</div></section>}
 
-        {page === 'admin' && <section className="py-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.25em] text-stone-400">Store management</p><h1 className="mt-2 font-serif text-5xl">Admin dashboard</h1><p className="mt-2 text-sm text-stone-500">Manage the catalog and local demo orders.</p></div><span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Local demo admin</span></div><div className="mt-8 grid gap-4 sm:grid-cols-3"><div className="rounded-2xl bg-white p-5"><Package className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{products.length}</p><p className="text-xs text-stone-500">Products</p></div><div className="rounded-2xl bg-white p-5"><ShoppingBag className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{orders.length}</p><p className="text-xs text-stone-500">Orders</p></div><div className="rounded-2xl bg-white p-5"><span className="text-xl font-semibold">₹</span><p className="mt-4 text-3xl font-semibold">{money(orders.filter(o => o.status !== 'cancelled').reduce((sum,o) => sum + o.total,0))}</p><p className="text-xs text-stone-500">Demo order value</p></div></div><div className="mt-8 flex gap-2"><button onClick={() => setAdminTab('products')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'products' ? 'bg-stone-900 text-white' : 'bg-white')}>Products</button><button onClick={() => setAdminTab('orders')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'orders' ? 'bg-stone-900 text-white' : 'bg-white')}>Orders</button></div>{adminTab === 'products' && <div className="mt-5 grid gap-6 lg:grid-cols-[340px_1fr]"><form onSubmit={saveProduct} className="h-fit space-y-3 rounded-2xl bg-white p-5"><h2 className="font-semibold">{editing ? 'Edit product' : 'Add a product'}</h2><input required value={productForm.name} onChange={e => setProductForm({...productForm,name:e.target.value})} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><textarea required value={productForm.description} onChange={e => setProductForm({...productForm,description:e.target.value})} placeholder="Description" rows={3} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><select value={productForm.category} onChange={e => setProductForm({...productForm,category:e.target.value})} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm">{['Footwear','Bags','Tech','Accessories','Clothing','Home'].map(c => <option key={c}>{c}</option>)}</select><div className="grid grid-cols-2 gap-3"><input required type="number" min="1" value={productForm.price} onChange={e => setProductForm({...productForm,price:e.target.value})} placeholder="Price" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm({...productForm,stock:e.target.value})} placeholder="Stock" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/></div><input value={productForm.image} onChange={e => setProductForm({...productForm,image:e.target.value})} placeholder="Image URL (optional)" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><button disabled={busy} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving...' : editing ? 'Save changes' : 'Create product'}</button>{editing && <button type="button" onClick={() => {setEditing(null);setProductForm({name:'',description:'',category:'Footwear',price:'1999',stock:'10',image:''})}} className="w-full rounded-full border border-stone-200 px-4 py-3 text-sm">Cancel edit</button>}</form><div className="overflow-hidden rounded-2xl bg-white"><div className="border-b border-stone-100 p-5 font-semibold">Catalog · {products.length}</div>{products.map(product => <div key={product.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 p-4 last:border-0"><div className="min-w-0"><p className="font-medium">{product.name} {!product.active && <span className="ml-2 text-xs text-stone-400">Hidden</span>}</p><p className="mt-1 text-xs text-stone-500">{product.category} · {money(product.price)} · {product.stock} in stock</p></div><div className="flex items-center gap-2"><button onClick={() => startEdit(product)} className="rounded-full border border-stone-200 p-2" aria-label="Edit product"><Pencil size={15}/></button><button onClick={() => void toggleProduct(product)} className="rounded-full border border-stone-200 px-3 py-2 text-xs">{product.active ? 'Hide' : 'Publish'}</button></div></div>)}</div></div>}{adminTab === 'orders' && <div className="mt-5 overflow-hidden rounded-2xl bg-white">{orders.length === 0 ? <p className="p-10 text-center text-sm text-stone-500">Orders will appear here after checkout.</p> : orders.slice().sort((a,b) => (b.created_at || '').localeCompare(a.created_at || '')).map(order => <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 p-5"><div><p className="font-semibold">#{order.id.slice(0,8)} · {order.customer_name}</p><p className="mt-1 text-xs text-stone-500">{order.customer_email} · {money(order.total)}</p></div><select value={order.status} onChange={e => void updateOrder(order,e.target.value as Order['status'])} className="rounded-lg border border-stone-200 px-3 py-2 text-sm">{['placed','processing','shipped','delivered','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}</select></div>)}</div>}</section>}
+        {page === 'admin' && <section className="py-8"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.25em] text-stone-400">Store management</p><h1 className="mt-2 font-serif text-5xl">Admin dashboard</h1><p className="mt-2 text-sm text-stone-500">Manage the catalog and local demo orders.</p></div><span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Local demo admin</span></div><div className="mt-8 grid gap-4 sm:grid-cols-3"><div className="rounded-2xl bg-white p-5"><Package className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{products.length}</p><p className="text-xs text-stone-500">Products</p></div><div className="rounded-2xl bg-white p-5"><ShoppingBag className="text-stone-400"/><p className="mt-4 text-3xl font-semibold">{orders.length}</p><p className="text-xs text-stone-500">Orders</p></div><div className="rounded-2xl bg-white p-5"><span className="text-xl font-semibold">₹</span><p className="mt-4 text-3xl font-semibold">{money(orders.filter(o => o.status !== 'cancelled').reduce((sum,o) => sum + o.total,0))}</p><p className="text-xs text-stone-500">Demo order value</p></div></div><div className="mt-8 flex gap-2"><button onClick={() => setAdminTab('products')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'products' ? 'bg-stone-900 text-white' : 'bg-white')}>Products</button><button onClick={() => setAdminTab('orders')} className={'rounded-full px-5 py-2.5 text-sm ' + (adminTab === 'orders' ? 'bg-stone-900 text-white' : 'bg-white')}>Orders</button></div>{adminTab === 'products' && <div className="mt-5 grid gap-6 lg:grid-cols-[340px_1fr]"><div className="h-fit rounded-2xl bg-white p-5"><h2 className="font-semibold">{editing ? 'Edit product' : 'Add products'}</h2>{!editing && <div className="mt-4 grid grid-cols-2 rounded-full bg-stone-100 p-1"><button type="button" onClick={() => {setProductEntryMode('manual');setJsonError('')}} className={'rounded-full px-3 py-2 text-xs font-semibold ' + (productEntryMode === 'manual' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500')}>One at a time</button><button type="button" onClick={() => {setProductEntryMode('json');setJsonError('')}} className={'rounded-full px-3 py-2 text-xs font-semibold ' + (productEntryMode === 'json' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500')}>Bulk JSON</button></div>}{(editing || productEntryMode === 'manual') ? <form onSubmit={saveProduct} className="mt-4 space-y-3"><input required value={productForm.name} onChange={e => setProductForm({...productForm,name:e.target.value})} placeholder="Product name" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><textarea required value={productForm.description} onChange={e => setProductForm({...productForm,description:e.target.value})} placeholder="Description" rows={3} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><select value={productForm.category} onChange={e => setProductForm({...productForm,category:e.target.value})} className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm">{['Footwear','Bags','Tech','Accessories','Clothing','Home'].map(c => <option key={c}>{c}</option>)}</select><div className="grid grid-cols-2 gap-3"><input required type="number" min="1" value={productForm.price} onChange={e => setProductForm({...productForm,price:e.target.value})} placeholder="Price" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><input required type="number" min="0" value={productForm.stock} onChange={e => setProductForm({...productForm,stock:e.target.value})} placeholder="Stock" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/></div><input value={productForm.image} onChange={e => setProductForm({...productForm,image:e.target.value})} placeholder="Image URL (optional)" className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm"/><button disabled={busy} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Saving...' : editing ? 'Save changes' : 'Create product'}</button>{editing && <button type="button" onClick={() => {setEditing(null);setProductForm({name:'',description:'',category:'Footwear',price:'1999',stock:'10',image:''})}} className="w-full rounded-full border border-stone-200 px-4 py-3 text-sm">Cancel edit</button>}</form> : <div className="mt-4 space-y-3"><p className="text-xs leading-5 text-stone-500">Paste a JSON array to add many products at once. All products are checked before anything is saved.</p><textarea value={productJson} onChange={e => {setProductJson(e.target.value);setJsonError('')}} rows={12} spellCheck={false} placeholder={'Paste your products JSON here...'} className="w-full rounded-lg border border-stone-200 px-3 py-3 font-mono text-xs leading-5 outline-none focus:border-stone-500"/>{jsonError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{jsonError}</p>}<button type="button" onClick={() => void importProductsFromJson()} disabled={busy || !productJson.trim()} className="w-full rounded-full bg-stone-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Importing products...' : 'Import all products'}</button><button type="button" onClick={() => setProductJson(JSON.stringify({products:[{name:'Everyday Runner',description:'Light cushioned shoes for daily use.',category:'Footwear',price:3499,compare_at_price:4299,stock:18,image:'https://example.com/runner.jpg',active:true,featured:true},{name:'Canvas Weekender',description:'A roomy canvas bag for short trips.',category:'Bags',price:2199,stock:12,active:true,featured:false}]},null,2)} className="w-full rounded-full border border-stone-200 px-4 py-2.5 text-xs font-semibold">Load sample JSON</button><p className="text-[11px] leading-5 text-stone-400">Required: name, description, category, price, stock. Optional: compare_at_price, image, active, featured.</p></div>}</div><div className="overflow-hidden rounded-2xl bg-white"><div className="border-b border-stone-100 p-5 font-semibold">Catalog · {products.length}</div>{products.map(product => <div key={product.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 p-4 last:border-0"><div className="min-w-0"><p className="font-medium">{product.name} {!product.active && <span className="ml-2 text-xs text-stone-400">Hidden</span>}</p><p className="mt-1 text-xs text-stone-500">{product.category} · {money(product.price)} · {product.stock} in stock</p></div><div className="flex items-center gap-2"><button onClick={() => startEdit(product)} className="rounded-full border border-stone-200 p-2" aria-label="Edit product"><Pencil size={15}/></button><button onClick={() => void toggleProduct(product)} className="rounded-full border border-stone-200 px-3 py-2 text-xs">{product.active ? 'Hide' : 'Publish'}</button></div></div>)}</div></div>}{adminTab === 'orders' && <div className="mt-5 overflow-hidden rounded-2xl bg-white">{orders.length === 0 ? <p className="p-10 text-center text-sm text-stone-500">Orders will appear here after checkout.</p> : orders.slice().sort((a,b) => (b.created_at || '').localeCompare(a.created_at || '')).map(order => <div key={order.id} className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 p-5"><div><p className="font-semibold">#{order.id.slice(0,8)} · {order.customer_name}</p><p className="mt-1 text-xs text-stone-500">{order.customer_email} · {money(order.total)}</p></div><select value={order.status} onChange={e => void updateOrder(order,e.target.value as Order['status'])} className="rounded-lg border border-stone-200 px-3 py-2 text-sm">{['placed','processing','shipped','delivered','cancelled'].map(s => <option key={s} value={s}>{s}</option>)}</select></div>)}</div>}</section>}
       </main>
       <section className="mt-12 border-t border-stone-200 bg-[#f1efe9]"><div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 sm:grid-cols-3"><div><p className="font-serif text-2xl">SHOPCRAFT</p><p className="mt-3 max-w-xs text-sm leading-6 text-stone-500">Thoughtful things for everyday living. Built for the demo, ready to grow.</p></div><div><p className="text-xs font-bold uppercase tracking-widest">Explore</p><div className="mt-4 space-y-2 text-sm text-stone-600"><Link className="block" href="/ecommerce">Shop all</Link><Link className="block" href="/ecommerce/orders">Order history</Link><Link className="block" href="/ecommerce/dashboard">My account</Link></div></div><div><p className="text-xs font-bold uppercase tracking-widest">Local demo</p><p className="mt-4 text-sm leading-6 text-stone-500">Orders and catalog data stay in this browser. Checkout does not collect payment or create a real shipment.</p></div></div></section>
       <Footer appName="ShopCraft" />
