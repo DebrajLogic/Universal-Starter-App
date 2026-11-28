@@ -93,13 +93,17 @@ export function ControlCenter() {
       storage.removeItem('__usa_storage_check__');
       setStatuses(previous => ({ ...previous, 'db:localstorage': { state: 'connected', detail: 'Read/write check passed' } }));
     } catch (error) {
-      setStatuses(previous => ({ ...previous, 'db:localstorage': { state: 'error', detail: error instanceof Error ? error.message : 'Storage access failed' } }));
+      const detail = error instanceof Error ? error.message : 'Storage access failed';
+      setStatuses(previous => ({ ...previous, 'db:localstorage': { state: 'error', detail } }));
+      setErrorMessage(detail);
     }
     try {
       await auth.getCurrentUser();
       setStatuses(previous => ({ ...previous, 'auth:local_session': { state: 'connected', detail: 'Local auth adapter responded' } }));
     } catch (error) {
-      setStatuses(previous => ({ ...previous, 'auth:local_session': { state: 'error', detail: error instanceof Error ? error.message : 'Auth check failed' } }));
+      const detail = error instanceof Error ? error.message : 'Auth check failed';
+      setStatuses(previous => ({ ...previous, 'auth:local_session': { state: 'error', detail } }));
+      setErrorMessage(detail);
     }
     try { setUser(await auth.getCurrentUser()); } catch { setUser(null); }
   }
