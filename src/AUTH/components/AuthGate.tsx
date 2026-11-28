@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { LoaderCircle } from 'lucide-react';
 import { auth } from '@/AUTH/auth/auth_switch';
 
-export function AuthGate({ children }: { children: React.ReactNode }) {
+function AuthGateContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [allowed, setAllowed] = useState(false);
@@ -32,4 +32,12 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     return <div className="flex min-h-[60vh] items-center justify-center gap-2 bg-color_1 text-sm text-color_5"><LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> Checking your local session...</div>;
   }
   return <>{children}</>;
+}
+
+export function AuthGate({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center gap-2 bg-color_1 text-sm text-color_5"><LoaderCircle size={18} className="animate-spin" aria-hidden="true" /> Loading your account...</div>}>
+      <AuthGateContent>{children}</AuthGateContent>
+    </Suspense>
+  );
 }
