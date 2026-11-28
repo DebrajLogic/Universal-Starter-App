@@ -38,8 +38,17 @@ function writeUsers(users: StoredUser[]): void {
   requireBrowser().setItem(USERS_KEY, JSON.stringify(users));
 }
 
+const LOCAL_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_LOCAL_ADMIN_EMAILS ?? 'admin@local.test')
+  .split(',')
+  .map(email => email.trim().toLowerCase())
+  .filter(Boolean);
+
+function roleForEmail(email: string): AuthUser['role'] {
+  return LOCAL_ADMIN_EMAILS.includes(email.toLowerCase()) ? 'admin' : 'user';
+}
+
 function publicUser(user: StoredUser): AuthUser {
-  return { id: user.id, name: user.name, email: user.email, role: 'user' };
+  return { id: user.id, name: user.name, email: user.email, role: roleForEmail(user.email) };
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -115,7 +124,7 @@ export const authLocalSession: AuthContract = {
       id: crypto.randomUUID(),
       name: cleanName,
       email: cleanEmail,
-      role: 'user',
+      role: roleForEmail(cleanEmail),
       password_hash,
       password_salt: salt,
     };
