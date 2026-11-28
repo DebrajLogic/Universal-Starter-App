@@ -5,6 +5,9 @@ export type AppNotification = BaseRecord & {
   user_id: string;
   title: string;
   message: string;
+  product_name?: string;
+  product_image?: string;
+  order_id?: string;
   href?: string;
   read_at?: string;
 };
