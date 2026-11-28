@@ -47,12 +47,13 @@ function ProviderRow({ provider, status, active, onToggle }: {
         <p className="text-xs text-color_5">{provider.detail}</p>
         <StatusBadge {...status} />
       </div>
-      <button type="button" role="switch" aria-checked={active} aria-label={`Activate ${provider.name}`}
-        onClick={onToggle} disabled={status.state === 'connecting'}
-        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${active ? 'bg-emerald-600' : 'bg-zinc-400'} disabled:opacity-60`}>
-        <span className="absolute left-0.5 top-1 h-5 w-5 rounded-full bg-white shadow-md transition-transform"
-          style={{ transform: active ? 'translateX(20px)' : 'translateX(0)' }} />
-      </button>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        {active && <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300">Active</span>}
+        <button type="button" onClick={onToggle} disabled={status.state === 'connecting'}
+          className="rounded-full border border-color_3 px-3 py-1.5 text-xs font-semibold transition hover:border-color_6 disabled:opacity-50">
+          {status.state === 'connecting' ? 'Checking…' : 'Test'}
+        </button>
+      </div>
     </div>
   );
 }
