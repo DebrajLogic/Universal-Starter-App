@@ -145,6 +145,25 @@ export const authLocalSession: AuthContract = {
     return publicUser(user);
   },
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    requireBrowser();
+    if (newPassword.length < 8) throw new Error('Your new password must be at least 8 characters.');
+    if (newPassword.length > 128) throw new Error('Your new password must be 128 characters or fewer.');
+    if (currentPassword === newPassword) throw new Error('Choose a password you are not already using.');
+    const session = JSON.parse(requireBrowser().getItem(SESSION_KEY) || 'null') as StoredSession | null;
+    if (!session?.user_id) throw new Error('Sign in again before changing your password.');
+    const users = readUsers();
+    const index = users.findIndex(item => item.id === session.user_id);
+    if (index < 0) throw new Error('Your local account could not be found.');
+    const user = users[index];
+    const currentHash = await derivePassword(currentPassword, user.password_salt);
+    if (currentHash !== user.password_hash) throw new Error('Your current password is incorrect.');
+    const salt = createSalt();
+    const password_hash = await derivePassword(newPassword, salt);
+    users[index] = { ...user, password_hash, password_salt: salt };
+    writeUsers(users);
+  },
+
   async signOut(): Promise<void> {
     requireBrowser().removeItem(SESSION_KEY);
   },
